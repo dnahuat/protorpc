@@ -1,0 +1,12 @@
+syntax:glob
+\.orig$
+\.orig\..*$
+\.chg\..*$
+\.rej$
+\.conflict\~$
+/QAModel/target/
+/QAAdmin/target/
+/QAClient/target/
+/ClientManager/target/
+/QAServices/target/
+/QAEAR/target/
