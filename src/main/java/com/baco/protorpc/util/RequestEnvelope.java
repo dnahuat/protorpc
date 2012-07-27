@@ -37,21 +37,24 @@ import java.io.Serializable;
  * @author deiby_nahuat
  */
 public class RequestEnvelope implements Serializable {
-    private static final Long serialVersionUID = 1l;
+    private static final Long serialVersionUID = 2l;
     
     private String methodName = "";
     private Object[] paramValues = {};
+    private String sessionID = "";
     
     public RequestEnvelope() {
         methodName = "";
         paramValues = new Object[]{};
+        sessionID = "";
     }
     
-    public RequestEnvelope(String methodName, Object[] values) {
+    public RequestEnvelope(String methodName, Object[] values, String sessionID) {
         this.methodName = methodName;
         if(values != null) {
             this.paramValues = values;
         }
+        this.sessionID = sessionID;
     }
     
     /**
@@ -69,5 +72,10 @@ public class RequestEnvelope implements Serializable {
     public Object[] getValues() {
         return paramValues;
     }
+    
+    public String getSessionID() {
+        return sessionID;
+    }
+    
     
 }

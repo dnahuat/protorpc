@@ -131,6 +131,7 @@ public class ProtoProxy {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
                 buffer.clear();
+                gos.close();
             }
             return;
         }
@@ -143,6 +144,7 @@ public class ProtoProxy {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
                 buffer.clear();
+                gos.close();
             }
             return;
         }
@@ -152,6 +154,7 @@ public class ProtoProxy {
         Object[] values = request.getValues();
         Method method = methodMap.get(request.getMethodName());
         Class<?>[] args = method.getParameterTypes();
+        String sessionID = request.getSessionID();
         /*
          * Check if number of arguments are equal to number of attrs on the
          * stored method
@@ -162,7 +165,9 @@ public class ProtoProxy {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
                 buffer.clear();
+                gos.close();
             }
+            return;
         }
         /*
          * Invoke method
@@ -172,7 +177,7 @@ public class ProtoProxy {
             /*
              * Initialize servlet context
              */
-            ProtoContext.initContext(servletRequest, request.getMethodName(), method.getDeclaringClass().getCanonicalName());
+            ProtoContext.initContext(servletRequest, request.getMethodName(), method.getDeclaringClass().getCanonicalName(), sessionID);
             result = method.invoke(srvImplementation, values);
             if(result != null && transformations != null) {
                 for(ResultTransformation transformation : transformations) {
@@ -189,7 +194,9 @@ public class ProtoProxy {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
                 buffer.clear();
+                gos.close();
             }
+            return;
         } finally {
             ProtoContext.terminateContext();
         }
@@ -201,17 +208,14 @@ public class ProtoProxy {
             ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
         } finally {
             buffer.clear();
+            gos.close();
         }
-        /*
-         * End connection
-         */
-        gos.close();
     }
 
     /**
      * Obtains the stacktrace of a Throwable in a printable format
-     * @param throwable
-     * @return 
+     * @param
+     * @return
      */
     private static String getStackTrace(Throwable throwable) {
         Writer writer = new StringWriter();

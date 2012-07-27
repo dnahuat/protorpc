@@ -66,12 +66,14 @@ public class ProtoProxy implements InvocationHandler, Serializable {
     protected ProtoProxyFactory factory;
     private URL url;
     private boolean isSecure = false;
+    private String sessionID = "";
     private final Map<Method, String> methodMap = new HashMap();
     private static ThreadLocal threadBuffer = new ThreadLocal();
 
-    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type, boolean isSecure) {
+    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type, String sessionID, boolean isSecure) {
         this.factory = factory;
         this.url = url;
+        this.sessionID = sessionID;
         this.isSecure = isSecure;
     }
 
@@ -125,7 +127,7 @@ public class ProtoProxy implements InvocationHandler, Serializable {
          * Request prepare
          */
 
-        RequestEnvelope request = new RequestEnvelope(uniqueName, (args != null && args.length > 0) ? args : null);
+        RequestEnvelope request = new RequestEnvelope(uniqueName, (args != null && args.length > 0) ? args : null, sessionID);
         /*
          * Write to stream and close it
          */

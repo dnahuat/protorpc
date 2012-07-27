@@ -48,6 +48,7 @@ public class ProtoProxyFactory {
 
     private final ClassLoader loader;
     private boolean isHttps = false;
+    private String sessionID = "";
 
     public ProtoProxyFactory() {
         this(Thread.currentThread().getContextClassLoader());
@@ -59,6 +60,18 @@ public class ProtoProxyFactory {
     
     public void setHttps(boolean isHttps) {
         this.isHttps = isHttps;
+    }
+    
+    public void setSessionID(String sessionID) {
+        if(sessionID != null) {
+            this.sessionID = sessionID;
+        } else {
+            this.sessionID = "";
+        }
+    }
+    
+    public String getSessionID() {
+        return sessionID;
     }
 
     /**
@@ -76,7 +89,7 @@ public class ProtoProxyFactory {
             throw new NullPointerException("Service interface class must not be null");
         }
         InvocationHandler handler = null;
-        handler = new ProtoProxy(url, this, iface, isHttps);
+        handler = new ProtoProxy(url, this, iface, sessionID, isHttps);
         return (T)Proxy.newProxyInstance(loader, new Class[]{iface} , handler);
     }
 }
