@@ -39,6 +39,7 @@ import com.dyuproject.protostuff.Schema;
 import com.dyuproject.protostuff.runtime.RuntimeSchema;
 import com.jcraft.jzlib.DeflaterOutputStream;
 import com.jcraft.jzlib.InflaterInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -67,14 +68,16 @@ public class ProtoProxy implements InvocationHandler, Serializable {
     private URL url;
     private boolean isSecure = false;
     private String sessionID = "";
+    private ProtoProxyCommFailedHandler exHandler;
     private final Map<Method, String> methodMap = new HashMap();
     private static ThreadLocal threadBuffer = new ThreadLocal();
 
-    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type, String sessionID, boolean isSecure) {
+    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type, String sessionID, boolean isSecure, ProtoProxyCommFailedHandler exHandler) {
         this.factory = factory;
         this.url = url;
         this.sessionID = sessionID;
         this.isSecure = isSecure;
+        this.exHandler = exHandler;
     }
 
     public URL getURL() {
@@ -122,12 +125,18 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         connection.setDoOutput(true);
         connection.setDoInput(true);
         connection.setReadTimeout(500000);
-        connection.connect();
+        try {
+            connection.connect();
+        } catch (IOException ex) {
+            ProtoProxyException pex = new ProtoProxyException("Error al conectar",ex.getMessage());
+            exHandler.exceptionReceived(pex);
+            return null;
+        }        
         /*
          * Request prepare
          */
-
         RequestEnvelope request = new RequestEnvelope(uniqueName, (args != null && args.length > 0) ? args : null, sessionID);
+        
         /*
          * Write to stream and close it
          */
@@ -151,12 +160,15 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         gis.close();
         if (response != null) {
             if (response.getStatus() > 0) {
-                throw new ProtoProxyException(response.getOpMessage(), response.getDetailMessage());
+                ProtoProxyException pex = new  ProtoProxyException(response.getOpMessage(), response.getDetailMessage());
+                exHandler.exceptionReceived(pex);
+                return null;
             }
             Object value = response.getResult();
             return value;
         } else {
-            System.out.println("(ProtoRpc) Cannot complete request, null response from server");
+            ProtoProxyException pex = new  ProtoProxyException("Data transport failed", "Null response received from server");
+            exHandler.exceptionReceived(pex);
         }
         return null;
     }

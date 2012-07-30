@@ -78,18 +78,19 @@ public class ProtoProxyFactory {
      * Creates a new proxy
      * @param <T> The service interface class
      * @param iface The service interface
-     * @param urlString The service url
+     * @param urlString The service url without the protocol
      * @return A proxy using the service interface as a facade
      * @throws MalformedURLException 
      */
-    public <T> T create(Class<T> iface, String urlString)
+    public <T> T create(Class<T> iface, String urlString, ProtoProxyCommFailedHandler exHandler)
             throws MalformedURLException {
-        URL url = new URL(urlString);
+        String protocol = isHttps ? "https://" : "http://";
+        URL url = new URL(protocol + urlString);
         if(iface == null) {
             throw new NullPointerException("Service interface class must not be null");
         }
-        InvocationHandler handler = null;
-        handler = new ProtoProxy(url, this, iface, sessionID, isHttps);
+        InvocationHandler handler;
+        handler = new ProtoProxy(url, this, iface, sessionID, isHttps, exHandler);
         return (T)Proxy.newProxyInstance(loader, new Class[]{iface} , handler);
     }
 }

@@ -10,3 +10,4 @@ syntax:glob
 /ClientManager/target/
 /QAServices/target/
 /QAEAR/target/
+/target/

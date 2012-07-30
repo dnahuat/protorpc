@@ -89,6 +89,7 @@ public abstract class ProtoServlet extends GenericServlet {
             throw new ServletException("Server must extend ProtoServlet");
         }
         List<ResultTransformation> resultTransformations = getTransformations();
+        configureSerialization();
         /* Init proxy */        
         serviceImpl = this;
         serviceIface = findServiceIface(serviceImpl.getClass());
@@ -143,5 +144,10 @@ public abstract class ProtoServlet extends GenericServlet {
      * @return A list of transformations
      */
     public abstract List<ResultTransformation> getTransformations();
+    
+    /**
+     * The class that implements this method should configure protostuff here
+     */
+    protected abstract void configureSerialization();
     
 }
