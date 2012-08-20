@@ -31,6 +31,7 @@
 package com.baco.protorpc.util;
 
 import java.io.Serializable;
+import java.util.Date;
 
 /**
  * Request wrapper
@@ -41,20 +42,17 @@ public class RequestEnvelope implements Serializable {
     
     private String methodName = "";
     private Object[] paramValues = {};
-    private String sessionID = "";
     
     public RequestEnvelope() {
         methodName = "";
         paramValues = new Object[]{};
-        sessionID = "";
     }
     
-    public RequestEnvelope(String methodName, Object[] values, String sessionID) {
+    public RequestEnvelope(String methodName, Object[] values) {
         this.methodName = methodName;
         if(values != null) {
             this.paramValues = values;
         }
-        this.sessionID = sessionID;
     }
     
     /**
@@ -72,10 +70,5 @@ public class RequestEnvelope implements Serializable {
     public Object[] getValues() {
         return paramValues;
     }
-    
-    public String getSessionID() {
-        return sessionID;
-    }
-    
     
 }

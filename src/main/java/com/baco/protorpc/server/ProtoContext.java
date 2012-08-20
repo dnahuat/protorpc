@@ -51,8 +51,6 @@ public class ProtoContext {
     private String serviceName;
     /* The service UUID requested by the client */
     private String serviceUuid;
-    /* Service caller session id */
-    private String sessionID;
     /* The number of clients this context is serving */
     private int contextCount = 0;
     
@@ -68,8 +66,7 @@ public class ProtoContext {
      */
     public static void initContext(ServletRequest request,
                                    String serviceUuid,
-                                   String serviceName,
-                                   String sessionID) throws ServletException {
+                                   String serviceName) throws ServletException {
         ProtoContext context = (ProtoContext) threadContext.get();
         if(context == null) {
             context = new ProtoContext();
@@ -78,7 +75,6 @@ public class ProtoContext {
         context.request = request;
         context.serviceName = serviceName;
         context.serviceUuid = serviceUuid;
-        context.sessionID = sessionID;
         context.contextCount++;
     }
     
@@ -130,19 +126,6 @@ public class ProtoContext {
     }
     
     /**
-     * Gets the current session ID
-     * @return The session ID
-     */
-    public static String getSessionID() {
-        ProtoContext context = (ProtoContext) threadContext.get();
-        if(context != null) {
-            return context.sessionID;
-        } else {
-            return null;
-        }
-    }
-    
-    /**
      * Terminates the current context
      */
     public static void terminateContext() {
@@ -153,6 +136,5 @@ public class ProtoContext {
             context.serviceUuid = "";
         }
     }
-    
     
 }

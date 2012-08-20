@@ -63,14 +63,12 @@ import javax.servlet.ServletRequest;
  * @author deiby_nahuat
  */
 public class ProtoProxy {
-    private List<ResultTransformation> transformations;
     private Object srvImplementation;
     private Map<String, Method> methodMap = new HashMap();
     private static ThreadLocal threadBuffer = new ThreadLocal();
 
-    protected ProtoProxy(Object srvImplementation, Class srvDescriptor, List<ResultTransformation> transformations) throws IllegalArgumentException {
+    protected ProtoProxy(Object srvImplementation, Class srvDescriptor) throws IllegalArgumentException {
         this.srvImplementation = srvImplementation;
-        this.transformations = transformations;
         /*
          * Fill method map
          */
@@ -154,7 +152,6 @@ public class ProtoProxy {
         Object[] values = request.getValues();
         Method method = methodMap.get(request.getMethodName());
         Class<?>[] args = method.getParameterTypes();
-        String sessionID = request.getSessionID();
         /*
          * Check if number of arguments are equal to number of attrs on the
          * stored method
@@ -177,13 +174,8 @@ public class ProtoProxy {
             /*
              * Initialize servlet context
              */
-            ProtoContext.initContext(servletRequest, request.getMethodName(), method.getDeclaringClass().getCanonicalName(), sessionID);
+            ProtoContext.initContext(servletRequest, request.getMethodName(), method.getDeclaringClass().getCanonicalName());
             result = method.invoke(srvImplementation, values);
-            if(result != null && transformations != null) {
-                for(ResultTransformation transformation : transformations) {
-                    transformation.transformObject(result, null, null);
-                }
-            }
         } catch (Exception e) {
             Throwable e1 = e;
             if (e1 instanceof InvocationTargetException) {

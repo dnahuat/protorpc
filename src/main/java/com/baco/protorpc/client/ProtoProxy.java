@@ -48,6 +48,7 @@ import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import javax.net.ssl.HttpsURLConnection;
@@ -67,15 +68,13 @@ public class ProtoProxy implements InvocationHandler, Serializable {
     protected ProtoProxyFactory factory;
     private URL url;
     private boolean isSecure = false;
-    private String sessionID = "";
     private ProtoProxyCommFailedHandler exHandler;
     private final Map<Method, String> methodMap = new HashMap();
     private static ThreadLocal threadBuffer = new ThreadLocal();
 
-    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type, String sessionID, boolean isSecure, ProtoProxyCommFailedHandler exHandler) {
+    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type, boolean isSecure, ProtoProxyCommFailedHandler exHandler) {
         this.factory = factory;
         this.url = url;
-        this.sessionID = sessionID;
         this.isSecure = isSecure;
         this.exHandler = exHandler;
     }
@@ -135,7 +134,7 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         /*
          * Request prepare
          */
-        RequestEnvelope request = new RequestEnvelope(uniqueName, (args != null && args.length > 0) ? args : null, sessionID);
+        RequestEnvelope request = new RequestEnvelope(uniqueName, (args != null && args.length > 0) ? args : null);
         
         /*
          * Write to stream and close it

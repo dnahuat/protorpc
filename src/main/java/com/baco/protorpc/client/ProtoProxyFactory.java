@@ -34,6 +34,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Date;
 
 /**
  * CHANGELOG
@@ -48,7 +49,6 @@ public class ProtoProxyFactory {
 
     private final ClassLoader loader;
     private boolean isHttps = false;
-    private String sessionID = "";
 
     public ProtoProxyFactory() {
         this(Thread.currentThread().getContextClassLoader());
@@ -62,18 +62,6 @@ public class ProtoProxyFactory {
         this.isHttps = isHttps;
     }
     
-    public void setSessionID(String sessionID) {
-        if(sessionID != null) {
-            this.sessionID = sessionID;
-        } else {
-            this.sessionID = "";
-        }
-    }
-    
-    public String getSessionID() {
-        return sessionID;
-    }
-
     /**
      * Creates a new proxy
      * @param <T> The service interface class
@@ -90,7 +78,7 @@ public class ProtoProxyFactory {
             throw new NullPointerException("Service interface class must not be null");
         }
         InvocationHandler handler;
-        handler = new ProtoProxy(url, this, iface, sessionID, isHttps, exHandler);
+        handler = new ProtoProxy(url, this, iface, isHttps, exHandler);
         return (T)Proxy.newProxyInstance(loader, new Class[]{iface} , handler);
     }
 }
