@@ -173,8 +173,10 @@ public final class RuntimeEnv
         MORPH_MAP_INTERFACES = Boolean.parseBoolean(props.getProperty(
                 "protostuff.runtime.morph_map_interfaces", "false"));
         
-        COLLECTION_SCHEMA_ON_REPEATED_FIELDS = Boolean.parseBoolean(props.getProperty(
-                "protostuff.runtime.collection_schema_on_repeated_fields", "false"));
+        //COLLECTION_SCHEMA_ON_REPEATED_FIELDS = Boolean.parseBoolean(props.getProperty(
+        //        "protostuff.runtime.collection_schema_on_repeated_fields", "false"));
+		/* Utilizar esto por defecto */
+		COLLECTION_SCHEMA_ON_REPEATED_FIELDS = Boolean.TRUE;
         
         // must be on a sun jre
         USE_SUN_MISC_UNSAFE = OBJECT_CONSTRUCTOR != null && Boolean.parseBoolean(
