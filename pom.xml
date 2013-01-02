@@ -62,5 +62,12 @@
             <version>3.8.1</version>
             <scope>test</scope>
         </dependency>
-    </dependencies>
+     </dependencies>
+  <distributionManagement>
+      <repository>
+         <id>nexus</id>
+         <name>Nexus Repo</name>
+         <url>http://nexus.company.com/nexus/content/repositories/releases/</url>
+      </repository>
+   </distributionManagement>
 </project>
