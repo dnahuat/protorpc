@@ -40,7 +40,7 @@ public class RequestEnvelope implements Serializable {
     private static final Long serialVersionUID = 3l;
     
     private String methodName = "";
-	private String sessionString = "";
+	private ProtoSession session;
     private Object[] paramValues = {};
     
     public RequestEnvelope() {
@@ -48,9 +48,9 @@ public class RequestEnvelope implements Serializable {
         paramValues = new Object[]{};
     }
     
-    public RequestEnvelope(String methodName, String sessionString, Object[] values) {
+    public RequestEnvelope(String methodName, ProtoSession session, Object[] values) {
         this.methodName = methodName;
-		this.sessionString = sessionString;
+		this.session = session;
         if(values != null) {
             this.paramValues = values;
         }
@@ -60,8 +60,8 @@ public class RequestEnvelope implements Serializable {
 	 * Returns current session string
 	 * @return The session
 	 */
-	public String getSessionString() {
-		return sessionString;	
+	public ProtoSession getSession() {
+		return session;	
 	}
 	
     /**

@@ -30,12 +30,11 @@
  */
 package com.baco.protorpc.server;
 
-import com.baco.protorpc.util.ResultTransformation;
+import com.baco.protorpc.util.ProtoSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.util.List;
 import javax.servlet.GenericServlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -128,7 +127,7 @@ public abstract class ProtoServlet extends GenericServlet {
 		return ProtoContext.getContext();
 	}
 
-	protected String getSession() {
+	protected ProtoSession getSession() {
 		return ProtoContext.getContextSession();
 	}
 

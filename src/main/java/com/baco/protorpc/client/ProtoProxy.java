@@ -32,6 +32,7 @@ package com.baco.protorpc.client;
 
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.ProtoProxySessionRetriever;
+import com.baco.protorpc.util.ProtoSession;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
 import com.dyuproject.protostuff.LinkedBuffer;
@@ -127,9 +128,9 @@ public class ProtoProxy implements InvocationHandler, Serializable {
 		/**
 		 * Retrieve session
 		 */
-		String session = UUID.randomUUID().toString();
-		if(sesRetriever != null && sesRetriever.getSessionString() != null) {
-			session = sesRetriever.getSessionString();
+		ProtoSession session = new ProtoSession("unknown", UUID.randomUUID().toString());
+		if(sesRetriever != null && sesRetriever.getSession() != null) {
+			session = sesRetriever.getSession();
 		}
         /*
          * Configure connection

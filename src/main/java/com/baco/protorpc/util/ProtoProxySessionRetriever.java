@@ -9,6 +9,10 @@ package com.baco.protorpc.util;
  */
 public interface ProtoProxySessionRetriever {
 
-	String getSessionString();
+	/**
+	 * Obtiene la sesion asignada al transporte
+	 * @return La sesion 
+	 */
+	ProtoSession getSession();
 		
 }
