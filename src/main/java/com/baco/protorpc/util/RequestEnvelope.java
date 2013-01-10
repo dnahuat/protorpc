@@ -31,16 +31,16 @@
 package com.baco.protorpc.util;
 
 import java.io.Serializable;
-import java.util.Date;
 
 /**
- * Request wrapper
+ * ProtoProxy request transporter
  * @author deiby_nahuat
  */
 public class RequestEnvelope implements Serializable {
-    private static final Long serialVersionUID = 2l;
+    private static final Long serialVersionUID = 3l;
     
     private String methodName = "";
+	private String sessionString = "";
     private Object[] paramValues = {};
     
     public RequestEnvelope() {
@@ -48,13 +48,22 @@ public class RequestEnvelope implements Serializable {
         paramValues = new Object[]{};
     }
     
-    public RequestEnvelope(String methodName, Object[] values) {
+    public RequestEnvelope(String methodName, String sessionString, Object[] values) {
         this.methodName = methodName;
+		this.sessionString = sessionString;
         if(values != null) {
             this.paramValues = values;
         }
     }
-    
+   
+	/**
+	 * Returns current session string
+	 * @return The session
+	 */
+	public String getSessionString() {
+		return sessionString;	
+	}
+	
     /**
      * Requested method
      * @return The requested method

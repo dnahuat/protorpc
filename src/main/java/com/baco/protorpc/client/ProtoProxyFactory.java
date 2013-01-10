@@ -30,6 +30,7 @@
  */
 package com.baco.protorpc.client;
 
+import com.baco.protorpc.util.ProtoProxySessionRetriever;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
@@ -70,7 +71,7 @@ public class ProtoProxyFactory {
      * @return A proxy using the service interface as a facade
      * @throws MalformedURLException 
      */
-    public <T> T create(Class<T> iface, String urlString, ProtoProxyCommFailedHandler exHandler)
+    public <T> T create(Class<T> iface, String urlString, ProtoProxyCommFailedHandler exHandler, ProtoProxySessionRetriever sesRetriever)
             throws MalformedURLException {
         String protocol = isHttps ? "https://" : "http://";
         URL url = new URL(protocol + urlString);
@@ -78,7 +79,7 @@ public class ProtoProxyFactory {
             throw new NullPointerException("Service interface class must not be null");
         }
         InvocationHandler handler;
-        handler = new ProtoProxy(url, this, iface, isHttps, exHandler);
+        handler = new ProtoProxy(url, this, iface, isHttps, exHandler, sesRetriever);
         return (T)Proxy.newProxyInstance(loader, new Class[]{iface} , handler);
     }
 }

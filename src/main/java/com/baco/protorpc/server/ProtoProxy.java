@@ -172,7 +172,7 @@ public class ProtoProxy {
             /*
              * Initialize servlet context
              */
-            ProtoContext.initContext(servletRequest, request.getMethodName(), method.getDeclaringClass().getCanonicalName());
+            ProtoContext.initContext(servletRequest, request.getMethodName(), request.getSessionString(), method.getDeclaringClass().getCanonicalName());
             result = method.invoke(srvImplementation, values);
         } catch (Exception e) {
             Throwable e1 = e;

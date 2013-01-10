@@ -31,6 +31,7 @@
 package com.baco.protorpc.client;
 
 import com.baco.protorpc.util.ProtoEncoders;
+import com.baco.protorpc.util.ProtoProxySessionRetriever;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
 import com.dyuproject.protostuff.LinkedBuffer;
@@ -51,6 +52,7 @@ import java.net.URLConnection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import javax.net.ssl.HttpsURLConnection;
 
 /**
@@ -69,14 +71,18 @@ public class ProtoProxy implements InvocationHandler, Serializable {
     private URL url;
     private boolean isSecure = false;
     private ProtoProxyCommFailedHandler exHandler;
+	private ProtoProxySessionRetriever sesRetriever;
     private final Map<Method, String> methodMap = new HashMap();
     private static ThreadLocal threadBuffer = new ThreadLocal();
 
-    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type, boolean isSecure, ProtoProxyCommFailedHandler exHandler) {
+    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type, 
+			boolean isSecure, ProtoProxyCommFailedHandler exHandler,
+			ProtoProxySessionRetriever sesRetriever) {
         this.factory = factory;
         this.url = url;
         this.isSecure = isSecure;
         this.exHandler = exHandler;
+		this.sesRetriever = sesRetriever;
     }
 
     public URL getURL() {
@@ -118,6 +124,13 @@ public class ProtoProxy implements InvocationHandler, Serializable {
             connection = (HttpURLConnection) url.openConnection();
             ((HttpURLConnection) connection).setRequestMethod("POST");
         }
+		/**
+		 * Retrieve session
+		 */
+		String session = UUID.randomUUID().toString();
+		if(sesRetriever != null && sesRetriever.getSessionString() != null) {
+			session = sesRetriever.getSessionString();
+		}
         /*
          * Configure connection
          */
@@ -130,11 +143,11 @@ public class ProtoProxy implements InvocationHandler, Serializable {
             ProtoProxyException pex = new ProtoProxyException("Error al conectar",ex.getMessage());
             exHandler.exceptionReceived(pex);
             return null;
-        }        
+		}		
         /*
          * Request prepare
          */
-        RequestEnvelope request = new RequestEnvelope(uniqueName, (args != null && args.length > 0) ? args : null);
+        RequestEnvelope request = new RequestEnvelope(uniqueName, session, (args != null && args.length > 0) ? args : null);
         
         /*
          * Write to stream and close it

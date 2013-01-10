@@ -124,6 +124,14 @@ public abstract class ProtoServlet extends GenericServlet {
         }
     }
 
+	protected ProtoContext getContext() {
+		return ProtoContext.getContext();
+	}
+
+	protected String getSession() {
+		return ProtoContext.getContextSession();
+	}
+
     /**
      * Invoke proxy method
      * @param request The client request
