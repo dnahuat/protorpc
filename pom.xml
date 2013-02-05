@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.baco</groupId>
     <artifactId>ProtoRpc</artifactId>
-    <version>1.0.5</version>
+    <version>1.0.8</version>
     <packaging>jar</packaging>
     <name>ProtoRpc</name>
     <url>http://maven.apache.org</url>
@@ -56,6 +56,12 @@
             <version>4.0.1.Final</version>  
             <scope>provided</scope>
         </dependency>
+		<dependency>
+			<groupId>org.jboss.spec.javax.ejb</groupId>
+			<artifactId>jboss-ejb-api_3.1_spec</artifactId>
+			<version>1.0.2.Final</version>
+			<scope>provided</scope>
+		</dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>

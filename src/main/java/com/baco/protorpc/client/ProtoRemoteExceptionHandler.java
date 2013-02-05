@@ -31,11 +31,11 @@
 package com.baco.protorpc.client;
 
 /**
- * Interface para manejo de errores en el transporte de datos
+ * Interface para manejo de errores en el backend 
  * @author deiby.nahuat
  */
-public interface ProtoProxyCommFailedHandler {
+public interface ProtoRemoteExceptionHandler {
     
-    void exceptionReceived(ProtoProxyException ex);
+    void processException(final ProtoProxyException exception);
     
 }

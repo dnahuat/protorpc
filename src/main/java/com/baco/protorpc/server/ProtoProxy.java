@@ -30,6 +30,7 @@
  */
 package com.baco.protorpc.server;
 
+import com.baco.protorpc.client.ProtoProxyException;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
@@ -46,8 +47,10 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.HashMap;
 import java.util.Map;
+import javax.ejb.EJBException;
 import javax.servlet.ServletRequest;
 
 /**
@@ -61,156 +64,176 @@ import javax.servlet.ServletRequest;
  * @author deiby_nahuat
  */
 public class ProtoProxy {
-    private Object srvImplementation;
-    private Map<String, Method> methodMap = new HashMap();
-    private static ThreadLocal threadBuffer = new ThreadLocal();
 
-    protected ProtoProxy(Object srvImplementation, Class srvDescriptor) throws IllegalArgumentException {
-        this.srvImplementation = srvImplementation;
-        /*
-         * Fill method map
-         */
-        Method[] methods = srvDescriptor.getMethods();
-        for (Method method : methods) {
-            methodMap.put(ProtoEncoders.getMethodNameAsSha1(method), method);
-        }
+	private Object srvImplementation;
+	private Map<String, Method> methodMap = new HashMap();
+	private static ThreadLocal threadBuffer = new ThreadLocal();
 
-        if (srvImplementation == null) {
-            throw new IllegalArgumentException("Service Implementation cannot be null");
-        }
-        if (!srvDescriptor.isAssignableFrom(srvImplementation.getClass())) {
-            throw new IllegalArgumentException("Service " + srvImplementation + " doesn't implements " + srvDescriptor.getName());
-        }
-    }
+	protected ProtoProxy(Object srvImplementation, Class srvDescriptor) throws IllegalArgumentException {
+		this.srvImplementation = srvImplementation;
+		/*
+		 * Fill method map
+		 */
+		Method[] methods = srvDescriptor.getMethods();
+		for (Method method : methods) {
+			methodMap.put(ProtoEncoders.getMethodNameAsSha1(method), method);
+		}
 
-    /**
-     * Invokes the requested method in the server implementation
-     *
-     * @param servletRequest Client request
-     * @param is Request Input
-     * @param os Response Output
-     * @throws Exception
-     */
-    public void invoke(ServletRequest servletRequest, InputStream is, OutputStream os) throws Exception {
-        /*
-         * Prepare buffer Reuses thread buffer or creates a new buffer
-         */
-        if (threadBuffer.get() == null) {
-            threadBuffer.set(LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE));
-        }
-        LinkedBuffer buffer = (LinkedBuffer) threadBuffer.get();
-        /**
-         * Obtain decompressed input stream
-         */
-        InflaterInputStream gis = new InflaterInputStream(is);
-        /**
-         * Prepare schemas
-         */
-        Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(RequestEnvelope.class);
-        Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(ResponseEnvelope.class);
-        /**
-         * Obtain request from decompressed input stream
-         */
-        RequestEnvelope request = new RequestEnvelope();
-        ProtostuffIOUtil.mergeFrom(gis, request, schema);
-        gis.close();
-        /**
-         * Obtain compressed output stream
-         */
-        DeflaterOutputStream gos = new DeflaterOutputStream(os);
-        /*
-         * Check request validity
-         */
-        if (request == null || request.getMethodName() == null || request.getMethodName().trim().isEmpty()) {
-            ResponseEnvelope response = new ResponseEnvelope(1, "Null request", "Client request is null", null);
-            try {
-                ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
-            } finally {
-                buffer.clear();
-                gos.close();
-            }
-            return;
-        }
-        /*
-         * Check if method exists
-         */
-        if (methodMap.get(request.getMethodName()) == null) {
-            ResponseEnvelope response = new ResponseEnvelope(1, "Nonexistent method", "Requested method doesn't exists", null);
-            try {
-                ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
-            } finally {
-                buffer.clear();
-                gos.close();
-            }
-            return;
-        }
-        /**
-         * Obtain request attributes
-         */
-        Object[] values = request.getValues();
-        Method method = methodMap.get(request.getMethodName());
-        Class<?>[] args = method.getParameterTypes();
-        /*
-         * Check if number of arguments are equal to number of attrs on the
-         * stored method
-         */
-        if (values.length != args.length) {
-            ResponseEnvelope response = new ResponseEnvelope(1, "Invalid arguments", "The requested service doesn't exists for given arguments", null);
-            try {
-                ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
-            } finally {
-                buffer.clear();
-                gos.close();
-            }
-            return;
-        }
-        /*
-         * Invoke method
-         */
-        Object result = null;
-        try {
-            /*
-             * Initialize servlet context
-             */
-            ProtoContext.initContext(servletRequest, request.getMethodName(), method.getDeclaringClass().getCanonicalName(), request.getSession());
-            result = method.invoke(srvImplementation, values);
-        } catch (Exception e) {
-            Throwable e1 = e;
-            if (e1 instanceof InvocationTargetException) {
-                e1 = ((InvocationTargetException) e).getTargetException();
-            }
-            ResponseEnvelope response = new ResponseEnvelope(2, "Service invocation exception: (" + e1.getClass().getName() + ":" + e1.getMessage() + ")", getStackTrace(e1), null);
-            try {
-                ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
-            } finally {
-                buffer.clear();
-                gos.close();
-            }
-            return;
-        } finally {
-            ProtoContext.terminateContext();
-        }
-        /*
-         * Write response to output
-         */
-        ResponseEnvelope response = new ResponseEnvelope(0, "", "", result);
-        try {
-            ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
-        } finally {
-            buffer.clear();
-            gos.close();
-        }
-    }
+		if (srvImplementation == null) {
+			throw new IllegalArgumentException("Service Implementation cannot be null");
+		}
+		if (!srvDescriptor.isAssignableFrom(srvImplementation.getClass())) {
+			throw new IllegalArgumentException("Service " + srvImplementation + " doesn't implements " + srvDescriptor.getName());
+		}
+	}
 
-    /**
-     * Obtains the stacktrace of a Throwable in a printable format
-     * @param
-     * @return
-     */
-    private static String getStackTrace(Throwable throwable) {
-        Writer writer = new StringWriter();
-        PrintWriter printWriter = new PrintWriter(writer);
-        throwable.printStackTrace(printWriter);
-        return writer.toString();
-    }
+	/**
+	 * Invokes the requested method in the server implementation
+	 *
+	 * @param servletRequest Client request
+	 * @param is Request Input
+	 * @param os Response Output
+	 * @throws Exception
+	 */
+	public void invoke(ServletRequest servletRequest, InputStream is, OutputStream os) throws Exception {
+		/*
+		 * Prepare buffer Reuses thread buffer or creates a new buffer
+		 */
+		if (threadBuffer.get() == null) {
+			threadBuffer.set(LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE));
+		}
+		LinkedBuffer buffer = (LinkedBuffer) threadBuffer.get();
+		/**
+		 * Obtain decompressed input stream
+		 */
+		InflaterInputStream gis = new InflaterInputStream(is);
+		/**
+		 * Prepare schemas
+		 */
+		Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(RequestEnvelope.class);
+		Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(ResponseEnvelope.class);
+		/**
+		 * Obtain request from decompressed input stream
+		 */
+		RequestEnvelope request = new RequestEnvelope();
+		ProtostuffIOUtil.mergeFrom(gis, request, schema);
+		gis.close();
+		/**
+		 * Obtain compressed output stream
+		 */
+		DeflaterOutputStream gos = new DeflaterOutputStream(os);
+		/*
+		 * Check request validity
+		 */
+		if (request == null || request.getMethodName() == null || request.getMethodName().trim().isEmpty()) {
+			ResponseEnvelope response = new ResponseEnvelope(1, "Null request", "Client request is null", "", null);
+			try {
+				ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+			} finally {
+				buffer.clear();
+				gos.close();
+			}
+			return;
+		}
+		/*
+		 * Check if method exists
+		 */
+		if (methodMap.get(request.getMethodName()) == null) {
+			ResponseEnvelope response = new ResponseEnvelope(1, "Nonexistent method", "Requested method doesn't exists", "", null);
+			try {
+				ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+			} finally {
+				buffer.clear();
+				gos.close();
+			}
+			return;
+		}
+		/**
+		 * Obtain request attributes
+		 */
+		Object[] values = request.getValues();
+		Method method = methodMap.get(request.getMethodName());
+		Class<?>[] args = method.getParameterTypes();
+		/*
+		 * Check if number of arguments are equal to number of attrs on the
+		 * stored method
+		 */
+		if (values.length != args.length) {
+			ResponseEnvelope response = new ResponseEnvelope(1, "Invalid arguments", "The requested service doesn't exists for given arguments", "", null);
+			try {
+				ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+			} finally {
+				buffer.clear();
+				gos.close();
+			}
+			return;
+		}
+		/*
+		 * Invoke method
+		 */
+		Object result = null;
+		try {
+			/*
+			 * Initialize servlet context
+			 */
+			ProtoContext.initContext(servletRequest, request.getMethodName(), method.getDeclaringClass().getCanonicalName(), request.getSession());
+			result = method.invoke(srvImplementation, values);
+		} catch (Exception e) {
+			Throwable e1 = e;
+			ProtoProxyException protoException = null;
+			/**
+			 * Desenvolver ProtoException
+			 */
+			if (e1 instanceof InvocationTargetException) {
+				e1 = ((InvocationTargetException) e).getTargetException();
+				if (e1 instanceof EJBException) {
+					e1 = ((EJBException) e1).getCausedByException();
+					if (e1 instanceof UndeclaredThrowableException) {
+						e1 = ((UndeclaredThrowableException) e1).getUndeclaredThrowable();
+					}
+				}
+			}
+			if (e1 instanceof ProtoProxyException) {
+				protoException = (ProtoProxyException) e1;
+			}
+			ResponseEnvelope response = null;
+			if (protoException != null) {
+				response = new ResponseEnvelope(2, protoException.getMessage(), protoException.getDetailedMessage(), protoException.getStringStacktrace(), null);
+			} else {
+				response = new ResponseEnvelope(2, "Server error", e1.getMessage(), getStackTrace(e1), null);
+			}
+			try {
+				ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+			} finally {
+				buffer.clear();
+				gos.close();
+			}
+			return;
+		} finally {
+			ProtoContext.terminateContext();
+		}
+		/*
+		 * Write response to output
+		 */
+		ResponseEnvelope response = new ResponseEnvelope(0, "EXECUTION OK", "OK", "", result);
+		try {
+			ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+		} finally {
+			buffer.clear();
+			gos.close();
+		}
+	}
+
+	/**
+	 * Obtains the stacktrace of a Throwable in a printable format
+	 *
+	 * @param
+	 * @return
+	 */
+	private static String getStackTrace(Throwable throwable) {
+		Writer writer = new StringWriter();
+		PrintWriter printWriter = new PrintWriter(writer);
+		throwable.printStackTrace(printWriter);
+		return writer.toString();
+	}
 }

@@ -35,7 +35,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Date;
 
 /**
  * CHANGELOG
@@ -71,7 +70,7 @@ public class ProtoProxyFactory {
      * @return A proxy using the service interface as a facade
      * @throws MalformedURLException 
      */
-    public <T> T create(Class<T> iface, String urlString, ProtoProxyCommFailedHandler exHandler, ProtoProxySessionRetriever sesRetriever)
+    public <T> T create(Class<T> iface, String urlString, ProtoRemoteExceptionHandler exHandler, ProtoProxySessionRetriever sesRetriever)
             throws MalformedURLException {
         String protocol = isHttps ? "https://" : "http://";
         URL url = new URL(protocol + urlString);

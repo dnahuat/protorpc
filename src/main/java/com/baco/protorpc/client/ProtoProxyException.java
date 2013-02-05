@@ -30,6 +30,8 @@
  */
 package com.baco.protorpc.client;
 
+import javax.ejb.ApplicationException;
+
 /**
  * CHANGELOG
  * ----------
@@ -39,18 +41,23 @@ package com.baco.protorpc.client;
  * Exception for protorpc
  * @author deiby_nahuat
  */
+@ApplicationException(inherited = true, rollback = true)
 public class ProtoProxyException extends Exception {
 
     private String detailedMessage;
+	private String stringStacktrace;
     
-    public ProtoProxyException(String message, String detailedMessage) {
+    public ProtoProxyException(String message, String detailedMessage, String stringStacktrace) {
         super(message);
         this.detailedMessage = detailedMessage;
+		this.stringStacktrace = stringStacktrace;
     }
     
     public String getDetailedMessage() {
         return detailedMessage;
     }
     
-    
+	public String getStringStacktrace() {
+		return stringStacktrace;
+	}    
 }

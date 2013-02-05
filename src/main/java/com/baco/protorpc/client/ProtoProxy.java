@@ -50,7 +50,6 @@ import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -71,13 +70,13 @@ public class ProtoProxy implements InvocationHandler, Serializable {
     protected ProtoProxyFactory factory;
     private URL url;
     private boolean isSecure = false;
-    private ProtoProxyCommFailedHandler exHandler;
+    private ProtoRemoteExceptionHandler exHandler;
 	private ProtoProxySessionRetriever sesRetriever;
     private final Map<Method, String> methodMap = new HashMap();
     private static ThreadLocal threadBuffer = new ThreadLocal();
 
     protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type, 
-			boolean isSecure, ProtoProxyCommFailedHandler exHandler,
+			boolean isSecure, ProtoRemoteExceptionHandler exHandler,
 			ProtoProxySessionRetriever sesRetriever) {
         this.factory = factory;
         this.url = url;
@@ -128,7 +127,7 @@ public class ProtoProxy implements InvocationHandler, Serializable {
 		/**
 		 * Retrieve session
 		 */
-		ProtoSession session = new ProtoSession("unknown", UUID.randomUUID().toString());
+		ProtoSession session = new ProtoSession("unknown", UUID.randomUUID().toString(), "unknown_client");
 		if(sesRetriever != null && sesRetriever.getSession() != null) {
 			session = sesRetriever.getSession();
 		}
@@ -141,9 +140,11 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         try {
             connection.connect();
         } catch (IOException ex) {
-            ProtoProxyException pex = new ProtoProxyException("Error al conectar",ex.getMessage());
-            exHandler.exceptionReceived(pex);
-            return null;
+            ProtoProxyException pex = new ProtoProxyException("Error al conectar",ex.getMessage(), "No stacktrace");
+			if(exHandler != null) {
+				exHandler.processException(pex);
+			}
+			throw pex;
 		}		
         /*
          * Request prepare
@@ -173,17 +174,21 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         gis.close();
         if (response != null) {
             if (response.getStatus() > 0) {
-                ProtoProxyException pex = new  ProtoProxyException(response.getOpMessage(), response.getDetailMessage());
-                exHandler.exceptionReceived(pex);
-                return null;
+				ProtoProxyException pex = new ProtoProxyException(response.getOpMessage(), response.getDetailMessage(), response.getStacktrace());
+				if(exHandler != null) {
+                	exHandler.processException(pex);
+				}
+				throw pex;
             }
             Object value = response.getResult();
             return value;
         } else {
-            ProtoProxyException pex = new  ProtoProxyException("Data transport failed", "Null response received from server");
-            exHandler.exceptionReceived(pex);
+			ProtoProxyException pex = new ProtoProxyException("Transport error", "Null response received from server", "No stacktrace available");
+			if(exHandler != null) {
+            	exHandler.processException(pex);
+			}
+			throw pex;
         }
-        return null;
     }
     
 }

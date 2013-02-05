@@ -140,7 +140,7 @@ public class ProtoContext {
 		if(context != null) {
 			return context.session;
 		} else {
-			return new ProtoSession("unknown", UUID.randomUUID().toString());
+			return new ProtoSession("unknown", UUID.randomUUID().toString(), "unknown_client");
 		}
 	}
     

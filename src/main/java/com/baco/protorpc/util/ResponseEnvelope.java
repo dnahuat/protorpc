@@ -52,14 +52,17 @@ public class ResponseEnvelope implements Serializable {
     private Integer opStatus = 0;
     private String detailMessage = "";
     private String opMessage = "";
+	private String stacktrace = "";
     
     public ResponseEnvelope() {
     }
     
-    public ResponseEnvelope(Integer opStatus, String opMessage, String detailMessage, Object result) {
+    public ResponseEnvelope(Integer opStatus, String opMessage, String detailMessage, String stacktrace, Object result) {
         this.opStatus = opStatus;
         this.result = result;
         this.opMessage = opMessage;
+		this.detailMessage = detailMessage;
+		this.stacktrace = stacktrace;
     }
 
     /**
@@ -85,6 +88,15 @@ public class ResponseEnvelope implements Serializable {
     public String getDetailMessage() {
         return detailMessage;
     }
+
+	/**
+	 * Returns the operation stacktrace if any, or an
+	 * empty string
+	 * @return The operation stacktrace 
+	 */
+	public String getStacktrace() {
+		return stacktrace;
+	}
     
     /**
      * Gets the operation result
