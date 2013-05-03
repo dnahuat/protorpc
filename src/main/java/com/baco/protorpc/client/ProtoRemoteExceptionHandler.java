@@ -36,6 +36,6 @@ package com.baco.protorpc.client;
  */
 public interface ProtoRemoteExceptionHandler {
     
-    void processException(final ProtoProxyException exception);
+    void processException(final Throwable exception);
     
 }

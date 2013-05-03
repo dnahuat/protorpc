@@ -28,7 +28,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  */
-package com.baco.protorpc.client;
+package com.baco.protorpc.exceptions;
 
 import javax.ejb.ApplicationException;
 
@@ -42,12 +42,12 @@ import javax.ejb.ApplicationException;
  * @author deiby_nahuat
  */
 @ApplicationException(inherited = true, rollback = true)
-public class ProtoProxyException extends Exception {
+public class ProtoTransportException extends Exception {
 
     private String detailedMessage;
 	private String stringStacktrace;
     
-    public ProtoProxyException(String message, String detailedMessage, String stringStacktrace) {
+    public ProtoTransportException(String message, String detailedMessage, String stringStacktrace) {
         super(message);
         this.detailedMessage = detailedMessage;
 		this.stringStacktrace = stringStacktrace;

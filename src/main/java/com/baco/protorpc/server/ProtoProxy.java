@@ -30,7 +30,8 @@
  */
 package com.baco.protorpc.server;
 
-import com.baco.protorpc.client.ProtoProxyException;
+import com.baco.protorpc.exceptions.ClientRequestNullException;
+import com.baco.protorpc.exceptions.MethodDoesntExistsException;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
@@ -126,7 +127,7 @@ public class ProtoProxy {
 		 * Check request validity
 		 */
 		if (request == null || request.getMethodName() == null || request.getMethodName().trim().isEmpty()) {
-			ResponseEnvelope response = new ResponseEnvelope(1, "Null request", "Client request is null", "", null);
+			ResponseEnvelope response = new ResponseEnvelope(1, null, new ClientRequestNullException());
 			try {
 				ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
 			} finally {
@@ -139,7 +140,7 @@ public class ProtoProxy {
 		 * Check if method exists
 		 */
 		if (methodMap.get(request.getMethodName()) == null) {
-			ResponseEnvelope response = new ResponseEnvelope(1, "Nonexistent method", "Requested method doesn't exists", "", null);
+			ResponseEnvelope response = new ResponseEnvelope(1, null, new MethodDoesntExistsException(request.getMethodName()));
 			try {
 				ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
 			} finally {
@@ -159,7 +160,7 @@ public class ProtoProxy {
 		 * stored method
 		 */
 		if (values.length != args.length) {
-			ResponseEnvelope response = new ResponseEnvelope(1, "Invalid arguments", "The requested service doesn't exists for given arguments", "", null);
+			ResponseEnvelope response = new ResponseEnvelope(1, null, new IllegalArgumentException("Protoservice argument number doesn't match passed argument count"));
 			try {
 				ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
 			} finally {
@@ -180,7 +181,6 @@ public class ProtoProxy {
 			result = method.invoke(srvImplementation, values);
 		} catch (Exception e) {
 			Throwable e1 = e;
-			ProtoProxyException protoException = null;
 			/**
 			 * Desenvolver ProtoException
 			 */
@@ -193,15 +193,10 @@ public class ProtoProxy {
 					}
 				}
 			}
-			if (e1 instanceof ProtoProxyException) {
-				protoException = (ProtoProxyException) e1;
-			}
-			ResponseEnvelope response = null;
-			if (protoException != null) {
-				response = new ResponseEnvelope(2, protoException.getMessage(), protoException.getDetailedMessage(), protoException.getStringStacktrace(), null);
-			} else {
-				response = new ResponseEnvelope(2, "Server error", e1.getMessage(), getStackTrace(e1), null);
-			}
+			/**
+			 * Preparacion de respuesta 
+			 */	
+			ResponseEnvelope response = new ResponseEnvelope(1, null, e1);
 			try {
 				ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
 			} finally {
@@ -215,7 +210,7 @@ public class ProtoProxy {
 		/*
 		 * Write response to output
 		 */
-		ResponseEnvelope response = new ResponseEnvelope(0, "EXECUTION OK", "OK", "", result);
+		ResponseEnvelope response = new ResponseEnvelope(0, result, null);
 		try {
 			ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
 		} finally {

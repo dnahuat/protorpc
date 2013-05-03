@@ -44,27 +44,22 @@ import java.io.Serializable;
 public class ResponseEnvelope implements Serializable {
     /* --- OpStatus ---
      * 0 : Everything OK
-     * 1 : Method doesn't exists
-     * 2 : Internal Error
+     * 1 : Error
      */
-    private static final Long serialVersionUID = 1l;
+    private static final Long serialVersionUID = 2l;
+	private Integer opStatus = 0;
     private Object result = null;    
-    private Integer opStatus = 0;
-    private String detailMessage = "";
-    private String opMessage = "";
-	private String stacktrace = "";
+    private Throwable throwable = null;
     
     public ResponseEnvelope() {
     }
-    
-    public ResponseEnvelope(Integer opStatus, String opMessage, String detailMessage, String stacktrace, Object result) {
-        this.opStatus = opStatus;
-        this.result = result;
-        this.opMessage = opMessage;
-		this.detailMessage = detailMessage;
-		this.stacktrace = stacktrace;
-    }
 
+	public ResponseEnvelope(Integer opStatus, Object result, Throwable throwable) {
+		this.opStatus  = opStatus;
+		this.result    = result;
+		this.throwable = throwable;
+	}
+    
     /**
      * Gets the operation status
      * @return The status
@@ -74,36 +69,19 @@ public class ResponseEnvelope implements Serializable {
     }
     
     /**
-     * Gets the operation message
-     * @return The message
-     */
-    public String getOpMessage() {
-        return opMessage;
-    }
-    
-    /**
-     * Gets the operation detailed message
-     * @return The detailed message
-     */
-    public String getDetailMessage() {
-        return detailMessage;
-    }
-
-	/**
-	 * Returns the operation stacktrace if any, or an
-	 * empty string
-	 * @return The operation stacktrace 
-	 */
-	public String getStacktrace() {
-		return stacktrace;
-	}
-    
-    /**
      * Gets the operation result
      * @return The result
      */
     public Object getResult() {
         return result;
     }
+
+	/**
+	 * Gets the operation exception or null if no error ocurred
+	 * @return The process exception
+	 */
+	public Throwable getThrowable() {
+		return throwable;
+	}
         
 }

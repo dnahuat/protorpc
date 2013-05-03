@@ -30,6 +30,7 @@
  */
 package com.baco.protorpc.client;
 
+import com.baco.protorpc.exceptions.ProtoTransportException;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.ProtoProxySessionRetriever;
 import com.baco.protorpc.util.ProtoSession;
@@ -140,7 +141,7 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         try {
             connection.connect();
         } catch (IOException ex) {
-            ProtoProxyException pex = new ProtoProxyException("Error al conectar",ex.getMessage(), "No stacktrace");
+            ProtoTransportException pex = new ProtoTransportException("Error al conectar",ex.getMessage(), "No stacktrace");
 			if(exHandler != null) {
 				exHandler.processException(pex);
 			}
@@ -174,16 +175,15 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         gis.close();
         if (response != null) {
             if (response.getStatus() > 0) {
-				ProtoProxyException pex = new ProtoProxyException(response.getOpMessage(), response.getDetailMessage(), response.getStacktrace());
 				if(exHandler != null) {
-                	exHandler.processException(pex);
+                	exHandler.processException(response.getThrowable());
 				}
-				throw pex;
+				throw response.getThrowable();
             }
             Object value = response.getResult();
             return value;
         } else {
-			ProtoProxyException pex = new ProtoProxyException("Transport error", "Null response received from server", "No stacktrace available");
+			ProtoTransportException pex = new ProtoTransportException("Transport error", "Null response received from server", "No stacktrace available");
 			if(exHandler != null) {
             	exHandler.processException(pex);
 			}
