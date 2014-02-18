@@ -51,7 +51,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.HashMap;
 import java.util.Map;
-import javax.ejb.EJBException;
 import javax.servlet.ServletRequest;
 
 /**
@@ -185,13 +184,7 @@ public class ProtoProxy {
 			 * Desenvolver ProtoException
 			 */
 			if (e1 instanceof InvocationTargetException) {
-				e1 = ((InvocationTargetException) e).getTargetException();
-				if (e1 instanceof EJBException) {
-					e1 = ((EJBException) e1).getCausedByException();
-					if (e1 instanceof UndeclaredThrowableException) {
-						e1 = ((UndeclaredThrowableException) e1).getUndeclaredThrowable();
-					}
-				}
+                            e1 = ((InvocationTargetException) e).getTargetException();				
 			}
 			/**
 			 * Preparacion de respuesta 

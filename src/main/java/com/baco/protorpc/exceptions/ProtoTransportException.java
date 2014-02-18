@@ -30,8 +30,6 @@
  */
 package com.baco.protorpc.exceptions;
 
-import javax.ejb.ApplicationException;
-
 /**
  * CHANGELOG
  * ----------
@@ -41,7 +39,6 @@ import javax.ejb.ApplicationException;
  * Exception for protorpc
  * @author deiby_nahuat
  */
-@ApplicationException(inherited = true, rollback = true)
 public class ProtoTransportException extends Exception {
 
     private String detailedMessage;
