@@ -36,9 +36,16 @@ import com.baco.protorpc.util.ProtoProxySessionRetriever;
 import com.baco.protorpc.util.ProtoSession;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
+import com.dyuproject.protostuff.Input;
 import com.dyuproject.protostuff.LinkedBuffer;
+import com.dyuproject.protostuff.Output;
+import com.dyuproject.protostuff.Pipe;
 import com.dyuproject.protostuff.ProtostuffIOUtil;
 import com.dyuproject.protostuff.Schema;
+import com.dyuproject.protostuff.WireFormat;
+import com.dyuproject.protostuff.runtime.DefaultIdStrategy;
+import com.dyuproject.protostuff.runtime.Delegate;
+import com.dyuproject.protostuff.runtime.RuntimeEnv;
 import com.dyuproject.protostuff.runtime.RuntimeSchema;
 import com.jcraft.jzlib.DeflaterOutputStream;
 import com.jcraft.jzlib.InflaterInputStream;
@@ -51,6 +58,9 @@ import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -108,6 +118,10 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         /**
          * Prepare schemas for wrappers
          */
+        DefaultIdStrategy dis = (DefaultIdStrategy)RuntimeEnv.ID_STRATEGY;
+        dis.registerDelegate(TIMESTAMP_DELEGATE);
+        dis.registerDelegate(DATE_DELEGATE);
+        dis.registerDelegate(TIME_DELEGATE);
         Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(RequestEnvelope.class);
         Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(ResponseEnvelope.class);
                 
@@ -190,5 +204,83 @@ public class ProtoProxy implements InvocationHandler, Serializable {
 			throw pex;
         }
     }
+    
+    static final Delegate<Timestamp> TIMESTAMP_DELEGATE = new Delegate<Timestamp>() {
+
+        public WireFormat.FieldType getFieldType() {
+            return WireFormat.FieldType.FIXED64;
+        }
+
+        public Class<?> typeClass() {
+            return Timestamp.class;
+        }
+
+        public Timestamp readFrom(Input input) throws IOException {
+            return new Timestamp(input.readFixed64());
+        }
+
+        public void writeTo(Output output, int number, Timestamp value, boolean repeated)
+                throws IOException {
+            output.writeFixed64(number, value.getTime(), repeated);
+        }
+
+        public void transfer(Pipe pipe, Input input, Output output, int number, boolean repeated)
+                throws IOException {
+            output.writeFixed64(number, input.readFixed64(), repeated);
+        }
+
+    };
+    
+    static final Delegate<Time> TIME_DELEGATE = new Delegate<Time>() {
+
+        public WireFormat.FieldType getFieldType() {
+            return WireFormat.FieldType.FIXED64;
+        }
+
+        public Class<?> typeClass() {
+            return Time.class;
+        }
+
+        public Time readFrom(Input input) throws IOException {
+            return new Time(input.readFixed64());
+        }
+
+        public void writeTo(Output output, int number, Time value, boolean repeated)
+                throws IOException {
+            output.writeFixed64(number, value.getTime(), repeated);
+        }
+
+        public void transfer(Pipe pipe, Input input, Output output, int number, boolean repeated)
+                throws IOException {
+            output.writeFixed64(number, input.readFixed64(), repeated);
+        }
+
+    };
+    
+    static final Delegate<Date> DATE_DELEGATE = new Delegate<Date>() {
+
+        public WireFormat.FieldType getFieldType() {
+            return WireFormat.FieldType.FIXED64;
+        }
+
+        public Class<?> typeClass() {
+            return Date.class;
+        }
+
+        public Date readFrom(Input input) throws IOException {
+            return new Date(input.readFixed64());
+        }
+
+        public void writeTo(Output output, int number, Date value, boolean repeated)
+                throws IOException {
+            output.writeFixed64(number, value.getTime(), repeated);
+        }
+
+        public void transfer(Pipe pipe, Input input, Output output, int number, boolean repeated)
+                throws IOException {
+            output.writeFixed64(number, input.readFixed64(), repeated);
+        }
+
+    };
     
 }
