@@ -61,39 +61,39 @@ import java.net.URLConnection;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.HttpsURLConnection;
 
 /**
- * CHANGELOG
- * ----------
- * 2012-02-09 : First version
+ * CHANGELOG ---------- 2012-02-09 : First version
  */
 /**
  * Client invocation proxy
+ *
  * @author deiby_nahuat
  */
 public class ProtoProxy implements InvocationHandler, Serializable {
+
     private static final Long serialVersionUID = 1l;
-    
+
     protected ProtoProxyFactory factory;
     private URL url;
     private boolean isSecure = false;
     private ProtoRemoteExceptionHandler exHandler;
-	private ProtoProxySessionRetriever sesRetriever;
-    private final Map<Method, String> methodMap = new HashMap();
-    private static ThreadLocal threadBuffer = new ThreadLocal();
+    private ProtoProxySessionRetriever sesRetriever;
+    private final Map<Method, String> methodMap = new ConcurrentHashMap<Method, String>();
+    private static ThreadLocal<LinkedBuffer> threadBuffer = new ThreadLocal();
 
-    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type, 
-			boolean isSecure, ProtoRemoteExceptionHandler exHandler,
-			ProtoProxySessionRetriever sesRetriever) {
+    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type,
+            boolean isSecure, ProtoRemoteExceptionHandler exHandler,
+            ProtoProxySessionRetriever sesRetriever) {
         this.factory = factory;
         this.url = url;
         this.isSecure = isSecure;
         this.exHandler = exHandler;
-		this.sesRetriever = sesRetriever;
+        this.sesRetriever = sesRetriever;
     }
 
     public URL getURL() {
@@ -101,30 +101,26 @@ public class ProtoProxy implements InvocationHandler, Serializable {
     }
 
     @Override
-    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {        
-        synchronized (methodMap) {
-            if (methodMap.get(method) == null) {
-                methodMap.put(method, ProtoEncoders.getMethodNameAsSha1(method));
-            }
-        }
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        methodMap.put(method, ProtoEncoders.getMethodNameAsSha1(method));
         /*
          * Get or initialize current buffer
          */
-        if (threadBuffer.get() == null) {
-            threadBuffer.set(LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE));
+        LinkedBuffer buffer = threadBuffer.get();
+        if (buffer == null) {
+            buffer = LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE);
+            threadBuffer.set(buffer);
         }
-        LinkedBuffer buffer = (LinkedBuffer) threadBuffer.get();
-        
         /**
          * Prepare schemas for wrappers
          */
-        DefaultIdStrategy dis = (DefaultIdStrategy)RuntimeEnv.ID_STRATEGY;
+        DefaultIdStrategy dis = (DefaultIdStrategy) RuntimeEnv.ID_STRATEGY;
         dis.registerDelegate(TIMESTAMP_DELEGATE);
         dis.registerDelegate(DATE_DELEGATE);
         dis.registerDelegate(TIME_DELEGATE);
         Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(RequestEnvelope.class);
         Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(ResponseEnvelope.class);
-                
+
         String uniqueName = methodMap.get(method);
         InputStream is;
         OutputStream os;
@@ -139,13 +135,13 @@ public class ProtoProxy implements InvocationHandler, Serializable {
             connection = (HttpURLConnection) url.openConnection();
             ((HttpURLConnection) connection).setRequestMethod("POST");
         }
-		/**
-		 * Retrieve session
-		 */
-		ProtoSession session = new ProtoSession("unknown", UUID.randomUUID().toString(), "unknown_client");
-		if(sesRetriever != null && sesRetriever.getSession() != null) {
-			session = sesRetriever.getSession();
-		}
+        /**
+         * Retrieve session
+         */
+        ProtoSession session = new ProtoSession("unknown", UUID.randomUUID().toString(), "unknown_client");
+        if (sesRetriever != null && sesRetriever.getSession() != null) {
+            session = sesRetriever.getSession();
+        }
         /*
          * Configure connection
          */
@@ -155,17 +151,17 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         try {
             connection.connect();
         } catch (IOException ex) {
-            ProtoTransportException pex = new ProtoTransportException("Error al conectar",ex.getMessage(), "No stacktrace");
-			if(exHandler != null) {
-				exHandler.processException(pex);
-			}
-			throw pex;
-		}		
+            ProtoTransportException pex = new ProtoTransportException("Error al conectar", ex.getMessage(), "No stacktrace");
+            if (exHandler != null) {
+                exHandler.processException(pex);
+            }
+            throw pex;
+        }
         /*
          * Request prepare
          */
         RequestEnvelope request = new RequestEnvelope(uniqueName, session, (args != null && args.length > 0) ? args : null);
-        
+
         /*
          * Write to stream and close it
          */
@@ -175,36 +171,36 @@ public class ProtoProxy implements InvocationHandler, Serializable {
             ProtostuffIOUtil.writeTo(gos, request, schema, buffer);
         } finally {
             buffer.clear();
-        }        
+        }
         gos.flush();
         gos.close();
-        
+
         /*
          * Read server response
          */
         is = connection.getInputStream();
         InflaterInputStream gis = new InflaterInputStream(is);
-        ResponseEnvelope response = new ResponseEnvelope();
+        ResponseEnvelope response = schemaResp.newMessage();
         ProtostuffIOUtil.mergeFrom(gis, response, schemaResp);
         gis.close();
         if (response != null) {
             if (response.getStatus() > 0) {
-				if(exHandler != null) {
-                	exHandler.processException(response.getThrowable());
-				}
-				throw response.getThrowable();
+                if (exHandler != null) {
+                    exHandler.processException(response.getThrowable());
+                }
+                throw response.getThrowable();
             }
             Object value = response.getResult();
             return value;
         } else {
-			ProtoTransportException pex = new ProtoTransportException("Transport error", "Null response received from server", "No stacktrace available");
-			if(exHandler != null) {
-            	exHandler.processException(pex);
-			}
-			throw pex;
+            ProtoTransportException pex = new ProtoTransportException("Transport error", "Null response received from server", "No stacktrace available");
+            if (exHandler != null) {
+                exHandler.processException(pex);
+            }
+            throw pex;
         }
     }
-    
+
     static final Delegate<Timestamp> TIMESTAMP_DELEGATE = new Delegate<Timestamp>() {
 
         public WireFormat.FieldType getFieldType() {
@@ -230,7 +226,7 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         }
 
     };
-    
+
     static final Delegate<Time> TIME_DELEGATE = new Delegate<Time>() {
 
         public WireFormat.FieldType getFieldType() {
@@ -256,7 +252,7 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         }
 
     };
-    
+
     static final Delegate<Date> DATE_DELEGATE = new Delegate<Date>() {
 
         public WireFormat.FieldType getFieldType() {
@@ -282,5 +278,5 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         }
 
     };
-    
+
 }

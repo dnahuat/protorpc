@@ -62,6 +62,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.servlet.ServletRequest;
 
 /**
@@ -74,11 +75,12 @@ import javax.servlet.ServletRequest;
  */
 public class ProtoProxy {
 
-    private Object srvImplementation;
-    private Map<String, Method> methodMap = new HashMap();
-    private static ThreadLocal threadBuffer = new ThreadLocal();
+    private final Object srvImplementation;
+    private Map<String, Method> methodMap =  new ConcurrentHashMap<String, Method>();
+    private static ThreadLocal<LinkedBuffer> threadBuffer = new ThreadLocal();
 
-    protected ProtoProxy(Object srvImplementation, Class srvDescriptor) throws IllegalArgumentException {
+    protected ProtoProxy(final Object srvImplementation, 
+                            final Class srvDescriptor) throws IllegalArgumentException {
         this.srvImplementation = srvImplementation;
         /*
          * Fill method map
@@ -108,10 +110,11 @@ public class ProtoProxy {
         /*
          * Prepare buffer Reuses thread buffer or creates a new buffer
          */
-        if (threadBuffer.get() == null) {
-            threadBuffer.set(LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE));
+        LinkedBuffer buffer = threadBuffer.get();
+        if (buffer == null) {
+            buffer = LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE);
+            threadBuffer.set(buffer);
         }
-        LinkedBuffer buffer = (LinkedBuffer) threadBuffer.get();
         /**
          * Obtain decompressed input stream
          */
@@ -127,8 +130,8 @@ public class ProtoProxy {
         Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(ResponseEnvelope.class);
         /**
          * Obtain request from decompressed input stream
-         */
-        RequestEnvelope request = new RequestEnvelope();
+         */        
+        RequestEnvelope request = schema.newMessage();
         ProtostuffIOUtil.mergeFrom(gis, request, schema);
         gis.close();
         /**

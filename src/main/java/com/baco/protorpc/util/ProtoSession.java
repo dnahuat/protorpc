@@ -11,35 +11,37 @@ import java.util.UUID;
  * @author deiby.nahuat
  */
 public class ProtoSession implements Serializable {
-	private static final long serialVersionUID = 4L;
+	private static final long serialVersionUID = 5L;
 
-	private String username;
+	private final String username;
 
-	private String session;
+	private final String session;
 
-	private String clientApp;
+	private final String clientApp;
 
-	public ProtoSession(String username, String clientApp) {
+	public ProtoSession(final String username, final String clientApp) {
 		this.username = username;
 		this.clientApp = clientApp;
 		this.session = UUID.randomUUID().toString();
 	}
 	
-	public ProtoSession(String username, String session, String clientApp) {
+	public ProtoSession(final String username, 
+                            final String session, 
+                            final String clientApp) {
 		this.username = username;
 		this.session = session;
 		this.clientApp = clientApp;
 	}
 
-	public String getUsername() {
+	public final String getUsername() {
 		return username;
 	}
 
-	public String getSession() {
+	public final String getSession() {
 		return session;
 	}
 
-	public String getClientApp() {
+	public final String getClientApp() {
 		return clientApp;
 	}
 	

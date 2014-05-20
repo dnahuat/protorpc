@@ -36,124 +36,130 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 
 /**
- * CHANGELOG
- * ----------
- * 2012-02-09 : First version
+ * CHANGELOG ---------- 2012-02-09 : First version
  */
 /**
- * Servlet context manager 
+ * Servlet context manager
+ *
  * @author deiby_nahuat
  */
-public class ProtoContext {
+public final class ProtoContext {
     /* Used to atach this context to a servlet */
+
     private static final ThreadLocal threadContext = new ThreadLocal();
     /* The client request attached to this context */
-    private ServletRequest request;    
+    private ServletRequest request;
     /* The service name requested by the client */
     private String serviceName;
     /* The service UUID requested by the client */
     private String serviceUuid;
-	/* The client session */
-	private ProtoSession session;
+    /* The client session */
+    private ProtoSession session;
     /* The number of clients this context is serving */
     private int contextCount = 0;
-    
-    private ProtoContext() {        
+
+    private ProtoContext() {
     }
-    
+
     /**
      * Initializes a new context
+     *
      * @param request The client request
      * @param serviceUuid The service UUID
      * @param serviceName The service name
-     * @throws ServletException 
+     * @throws ServletException
      */
     public static void initContext(ServletRequest request,
-                                   String serviceUuid,
-                                   String serviceName,
-								   ProtoSession session) throws ServletException {
+            String serviceUuid,
+            String serviceName,
+            ProtoSession session) throws ServletException {
         ProtoContext context = (ProtoContext) threadContext.get();
-        if(context == null) {
+        if (context == null) {
             context = new ProtoContext();
             threadContext.set(context);
         }
         context.request = request;
         context.serviceName = serviceName;
         context.serviceUuid = serviceUuid;
-		context.session = session;
+        context.session = session;
         context.contextCount++;
     }
-    
+
     /**
      * Gets the current context attached to the calling servlet
+     *
      * @return The context
      */
     public static ProtoContext getContext() {
         return (ProtoContext) threadContext.get();
     }
-    
+
     /**
      * Gets the servlet request attached to the calling servlet
+     *
      * @return The client request
      */
     public static ServletRequest getContextRequest() {
         ProtoContext context = (ProtoContext) threadContext.get();
-        if(context != null) {
+        if (context != null) {
             return context.request;
         } else {
             return null;
         }
     }
-    
+
     /**
      * Gets the current service name
+     *
      * @return The service name
      */
     public static String getContextServiceName() {
         ProtoContext context = (ProtoContext) threadContext.get();
-        if(context != null) {
+        if (context != null) {
             return context.serviceName;
         } else {
             return null;
         }
     }
-    
+
     /**
      * Gets the current service UUID
+     *
      * @return The service UUID
      */
     public static String getContextServiceUuid() {
         ProtoContext context = (ProtoContext) threadContext.get();
-        if(context != null) {
+        if (context != null) {
             return context.serviceUuid;
         } else {
             return null;
         }
     }
 
-	/**
-	 * Gets the current context session
-	 * @return The session
-	 */
-	public static ProtoSession getContextSession() {
-		ProtoContext context = (ProtoContext) threadContext.get();
-		if(context != null) {
-			return context.session;
-		} else {
-			return new ProtoSession("unknown", UUID.randomUUID().toString(), "unknown_client");
-		}
-	}
-    
+    /**
+     * Gets the current context session
+     *
+     * @return The session
+     */
+    public static ProtoSession getContextSession() {
+        ProtoContext context = (ProtoContext) threadContext.get();
+        if (context != null) {
+            return context.session;
+        } else {
+            return new ProtoSession("unknown", UUID.randomUUID().toString(), "unknown_client");
+        }
+    }
+
     /**
      * Terminates the current context
      */
     public static void terminateContext() {
         ProtoContext context = (ProtoContext) threadContext.get();
-        if(context != null && --context.contextCount == 0) {
+        if (context != null && --context.contextCount == 0) {
             context.request = null;
             context.serviceName = "";
             context.serviceUuid = "";
         }
     }
-    
+
 }

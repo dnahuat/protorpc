@@ -31,53 +31,58 @@
 package com.baco.protorpc.util;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * ProtoProxy request transporter
+ *
  * @author deiby_nahuat
  */
 public class RequestEnvelope implements Serializable {
-    private static final Long serialVersionUID = 3l;
-    
-    private String methodName = "";
-	private ProtoSession session;
-    private Object[] paramValues = {};
-    
-    public RequestEnvelope() {
-        methodName = "";
-        paramValues = new Object[]{};
-    }
-    
-    public RequestEnvelope(String methodName, ProtoSession session, Object[] values) {
+
+    private static final Long serialVersionUID = 6l;
+
+    private final String methodName;
+    private final ProtoSession session;
+    private final Object[] paramValues;
+
+    public RequestEnvelope(final String methodName, 
+                            final ProtoSession session, 
+                            final Object[] values) {
         this.methodName = methodName;
-		this.session = session;
-        if(values != null) {
+        this.session = session;
+        if (values != null) {
             this.paramValues = values;
+        } else {
+            this.paramValues = new Object[]{};
         }
     }
-   
-	/**
-	 * Returns current session string
-	 * @return The session
-	 */
-	public ProtoSession getSession() {
-		return session;	
-	}
-	
+
+    /**
+     * Returns current session string
+     *
+     * @return The session
+     */
+    public final ProtoSession getSession() {
+        return session;
+    }
+
     /**
      * Requested method
+     *
      * @return The requested method
      */
-    public String getMethodName() {
+    public final String getMethodName() {
         return methodName;
     }
-    
+
     /**
      * Method parameter values
+     *
      * @return The method parameter values
      */
-    public Object[] getValues() {
+    public final Object[] getValues() {
         return paramValues;
     }
-    
+
 }

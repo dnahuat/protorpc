@@ -33,12 +33,8 @@ package com.baco.protorpc.util;
 import java.io.Serializable;
 
 /**
- * CHANGELOG
- * ----------
- * 2012-02-09 : First version
- */
-/**
  * Response wrapper
+ *
  * @author deiby_nahuat
  */
 public class ResponseEnvelope implements Serializable {
@@ -46,42 +42,45 @@ public class ResponseEnvelope implements Serializable {
      * 0 : Everything OK
      * 1 : Error
      */
-    private static final Long serialVersionUID = 2l;
-	private Integer opStatus = 0;
-    private Object result = null;    
-    private Throwable throwable = null;
-    
-    public ResponseEnvelope() {
+
+    private static final Long serialVersionUID = 5l;
+    private final Integer opStatus;
+    private final Object result;
+    private final Throwable throwable;
+
+    public ResponseEnvelope(final Integer opStatus, 
+                            final Object result, 
+                            final Throwable throwable) {
+        this.opStatus = opStatus;
+        this.result = result;
+        this.throwable = throwable;
     }
 
-	public ResponseEnvelope(Integer opStatus, Object result, Throwable throwable) {
-		this.opStatus  = opStatus;
-		this.result    = result;
-		this.throwable = throwable;
-	}
-    
     /**
      * Gets the operation status
+     *
      * @return The status
      */
-    public Integer getStatus() {
+    public final Integer getStatus() {
         return opStatus;
     }
-    
+
     /**
      * Gets the operation result
+     *
      * @return The result
      */
-    public Object getResult() {
+    public final Object getResult() {
         return result;
     }
 
-	/**
-	 * Gets the operation exception or null if no error ocurred
-	 * @return The process exception
-	 */
-	public Throwable getThrowable() {
-		return throwable;
-	}
-        
+    /**
+     * Gets the operation exception or null if no error ocurred
+     *
+     * @return The process exception
+     */
+    public final Throwable getThrowable() {
+        return throwable;
+    }
+
 }
