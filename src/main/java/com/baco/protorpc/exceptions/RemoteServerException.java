@@ -28,16 +28,15 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  */
-package com.baco.protorpc.client;
-
-import com.baco.protorpc.exceptions.ProtoException;
+package com.baco.protorpc.exceptions;
 
 /**
- * Interface para manejo de errores en el backend 
+ *
  * @author deiby.nahuat
  */
-public interface ProtoRemoteExceptionHandler {
+public class RemoteServerException extends ProtoException {
     
-    void processException(final ProtoException exception);
-    
+    public RemoteServerException(Throwable exception) {
+        super("PROTORPC: An exception has been thrown in the remote server.", exception);
+    }
 }

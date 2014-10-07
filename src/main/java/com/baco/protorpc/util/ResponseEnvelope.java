@@ -30,6 +30,8 @@
  */
 package com.baco.protorpc.util;
 
+import com.baco.protorpc.exceptions.ProtoException;
+import com.baco.protorpc.exceptions.RemoteServerException;
 import java.io.Serializable;
 
 /**
@@ -43,14 +45,14 @@ public class ResponseEnvelope implements Serializable {
      * 1 : Error
      */
 
-    private static final Long serialVersionUID = 5l;
+    private static final Long serialVersionUID = 8l;
     private final Integer opStatus;
     private final Object result;
-    private final Throwable throwable;
+    private final ProtoException throwable;
 
     public ResponseEnvelope(final Integer opStatus, 
                             final Object result, 
-                            final Throwable throwable) {
+                            final ProtoException throwable) {
         this.opStatus = opStatus;
         this.result = result;
         this.throwable = throwable;
@@ -79,7 +81,7 @@ public class ResponseEnvelope implements Serializable {
      *
      * @return The process exception
      */
-    public final Throwable getThrowable() {
+    public final ProtoException getThrowable() {
         return throwable;
     }
 

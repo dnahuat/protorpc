@@ -34,11 +34,10 @@ package com.baco.protorpc.exceptions;
  * Exception to throw when the client makes a null request
  * @author deiby.nahuat
  */
-public class ClientRequestNullException extends Exception {
+public class ClientRequestNullException extends ProtoException {
 
-	@Override
-	public String getMessage() {
-		return "PROTORPC: The client request was null";
-	}
+    public ClientRequestNullException(Throwable throwable) {
+        super("PROTORPC: The client request was null", throwable);
+    }
 	
 }

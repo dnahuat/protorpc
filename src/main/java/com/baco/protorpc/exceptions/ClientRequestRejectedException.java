@@ -34,15 +34,9 @@ package com.baco.protorpc.exceptions;
  *
  * @author deiby.nahuat
  */
-public class ClientRequestRejectedException extends Exception {
-    private final String reason;
-    public ClientRequestRejectedException(String reason) {
-        this.reason = reason;
+public class ClientRequestRejectedException extends ProtoException {
+    public ClientRequestRejectedException(String reason, Throwable thr) {
+        super("PROTORPC: Server rejected request. Reason: " + reason, thr);
     }
 
-    @Override
-    public String getMessage() {
-        return "PROTORPC: Server rejected request. Reason: " + reason;
-    }
-    
 }

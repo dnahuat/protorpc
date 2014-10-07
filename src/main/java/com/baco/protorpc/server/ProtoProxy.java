@@ -34,6 +34,8 @@ import com.baco.protorpc.api.SessionValidator;
 import com.baco.protorpc.exceptions.ClientRequestNullException;
 import com.baco.protorpc.exceptions.ClientRequestRejectedException;
 import com.baco.protorpc.exceptions.MethodDoesntExistsException;
+import com.baco.protorpc.exceptions.RemoteServerException;
+import com.baco.protorpc.exceptions.WrongNumberOfArgumentsException;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
@@ -78,7 +80,7 @@ public class ProtoProxy {
 
     private final Object srvImplementation;
     private final SessionValidator[] sessionValidators;
-    private Map<String, Method> methodMap = new ConcurrentHashMap<String, Method>();
+    private final Map<String, Method> methodMap;
     private static ThreadLocal<LinkedBuffer> threadBuffer = new ThreadLocal();
 
     protected ProtoProxy(final Object srvImplementation,
@@ -86,11 +88,12 @@ public class ProtoProxy {
             final SessionValidator[] sessionValidators) throws IllegalArgumentException {
         this.srvImplementation = srvImplementation;
         this.sessionValidators = sessionValidators;
+        this.methodMap = new ConcurrentHashMap<String, Method>();
         /*
          * Fill method map
          */
         Method[] methods = srvDescriptor.getMethods();
-        for (Method method : methods) {
+        for (Method method : methods) {     
             methodMap.put(ProtoEncoders.getMethodNameAsSha1(method), method);
         }
 
@@ -154,7 +157,7 @@ public class ProtoProxy {
         if (request == null || request.getMethodName() == null || request.
                 getMethodName().trim().isEmpty()) {
             ResponseEnvelope response = new ResponseEnvelope(1, null,
-                    new ClientRequestNullException());
+                    new ClientRequestNullException(null));
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
@@ -168,7 +171,10 @@ public class ProtoProxy {
          */
         if (methodMap.get(request.getMethodName()) == null) {
             ResponseEnvelope response = new ResponseEnvelope(1, null,
-                    new MethodDoesntExistsException(request.getMethodName()));
+                    new MethodDoesntExistsException(request.getMethodName(), 
+                            new IllegalArgumentException(
+                            "Protoservice, requested method doesn't exists"
+                            ).fillInStackTrace()));
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
@@ -189,8 +195,10 @@ public class ProtoProxy {
          */
         if (values.length != args.length) {
             ResponseEnvelope response = new ResponseEnvelope(1, null,
-                    new IllegalArgumentException(
-                            "Protoservice argument number doesn't match passed argument count"));
+                    new WrongNumberOfArgumentsException(request.getMethodName(), 
+                            new IllegalArgumentException(
+                            "Protoservice, wrong number of arguments in request"
+                            ).fillInStackTrace()));
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
@@ -244,7 +252,7 @@ public class ProtoProxy {
             /**
              * Preparacion de respuesta
              */
-            ResponseEnvelope response = new ResponseEnvelope(1, null, e1);
+            ResponseEnvelope response = new ResponseEnvelope(1, null, new RemoteServerException(e1));
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {

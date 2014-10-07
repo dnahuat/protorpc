@@ -28,16 +28,41 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  */
-package com.baco.protorpc.client;
+package com.baco.protorpc.exceptions;
 
-import com.baco.protorpc.exceptions.ProtoException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 /**
- * Interface para manejo de errores en el backend 
+ * Proto RPC exception
  * @author deiby.nahuat
  */
-public interface ProtoRemoteExceptionHandler {
+public class ProtoException extends Exception {
+    private final String serializableStacktrace;
+    public ProtoException(final String message, final Throwable cause) {
+        super(message);        
+        serializableStacktrace = (cause == null)?"":stacktraceToString(cause);
+    }
+
+    @Override
+    public void printStackTrace() {
+        System.err.println(serializableStacktrace);
+    }
+
+    @Override
+    public void printStackTrace(PrintStream s) {
+        s.println(serializableStacktrace);
+    }
+
+    @Override
+    public void printStackTrace(PrintWriter s) {
+        s.println(serializableStacktrace);
+    }
     
-    void processException(final ProtoException exception);
-    
+    public static final String stacktraceToString(Throwable thr) {
+        StringWriter sw = new StringWriter();
+        thr.printStackTrace(new PrintWriter(sw));
+        return sw.toString();
+    }
 }

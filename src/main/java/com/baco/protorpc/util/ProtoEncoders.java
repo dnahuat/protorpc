@@ -36,12 +36,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
- * CHANGELOG
- * ----------
- * 2012-02-09 : First version
+ * CHANGELOG ---------- 2012-02-09 : First version
  */
 /**
  * Static methods for service name encoding
+ *
  * @author deiby_nahuat
  */
 public class ProtoEncoders {
@@ -50,6 +49,7 @@ public class ProtoEncoders {
 
     /**
      * Converts a byte array to an hex representation
+     *
      * @param data The bytearray
      * @return The hex representation as a String
      */
@@ -59,21 +59,23 @@ public class ProtoEncoders {
         }
         final StringBuilder hex = new StringBuilder(2 * data.length);
         for (final byte b : data) {
-            hex.append(HEXNUMS.charAt((b & 0xF0) >> 4)).append(HEXNUMS.charAt((b & 0x0F)));
+            hex.append(HEXNUMS.charAt((b & 0xF0) >> 4)).append(HEXNUMS.charAt(
+                    (b & 0x0F)));
         }
         return hex.toString();
     }
 
     /**
      * Gets a SHA1 hash from a String
+     *
      * @param text The text to be hashed
      * @param encoding The text encoding
      * @return The SHA1 hash
-     * @throws UnsupportedEncodingException 
+     * @throws UnsupportedEncodingException
      */
     public static String getSha1FromString(String text, String encoding) throws UnsupportedEncodingException {
         MessageDigest md;
-        if(text == null && encoding == null) {
+        if (text == null && encoding == null) {
             throw new IllegalArgumentException("text or encoding cannot be null");
         }
         try {
@@ -86,12 +88,13 @@ public class ProtoEncoders {
 
     /**
      * Gets a SHA1 hash from a String using an UTF-8 encoding
+     *
      * @param text The text to be hashed
      * @return The SHA1 hash
      */
     public static String getSha1FromString(String text) {
         MessageDigest md;
-        if(text == null) {
+        if (text == null) {
             throw new IllegalArgumentException("text cannot be null");
         }
         try {
@@ -105,39 +108,37 @@ public class ProtoEncoders {
             return null;
         }
     }
-    
+
     /**
      * Gets a method name (+args) unique name
+     *
      * @param method The method
      * @return The method unique name
      */
     public static String getMethodUniqueName(Method method) {
-        if(method == null) {
+        if (method == null) {
             return null;
         }
         StringBuilder sb = new StringBuilder();
-        Class[] methodParams = method.getParameterTypes();        
-        sb.append("MSTART__");
+        Class[] methodParams = method.getParameterTypes();
         sb.append(method.getName());
-        sb.append("__");
-        for(Class klass : methodParams) {
+        for (Class klass : methodParams) {
             sb.append(klass.getName());
-            sb.append("__");
         }
-        sb.append("__MEND");
         return sb.toString();
     }
-    
+
     /**
      * Hashes a method unique name with SHA1
+     *
      * @param method The method
      * @return The method unique name hashed with SHA1
      */
     public static String getMethodNameAsSha1(Method method) {
-        if(method == null) {
+        if (method == null) {
             return null;
         }
         return getSha1FromString(getMethodUniqueName(method));
     }
-    
+
 }

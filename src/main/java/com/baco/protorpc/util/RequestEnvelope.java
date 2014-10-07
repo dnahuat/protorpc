@@ -40,7 +40,7 @@ import java.io.Serializable;
  */
 public class RequestEnvelope implements Serializable {
 
-    private static final Long serialVersionUID = 6l;
+    private static final Long serialVersionUID = 8l;
 
     private final String methodName;
     private final ProtoSession session;

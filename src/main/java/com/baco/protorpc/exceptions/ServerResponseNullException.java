@@ -28,16 +28,14 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  */
-package com.baco.protorpc.client;
-
-import com.baco.protorpc.exceptions.ProtoException;
+package com.baco.protorpc.exceptions;
 
 /**
- * Interface para manejo de errores en el backend 
+ * An exception to be thrown when a server response is null
  * @author deiby.nahuat
  */
-public interface ProtoRemoteExceptionHandler {
-    
-    void processException(final ProtoException exception);
-    
+public class ServerResponseNullException extends ProtoException {
+    public ServerResponseNullException(Throwable throwable) {
+        super("PROTORPC: The server response was null", throwable);
+    }
 }

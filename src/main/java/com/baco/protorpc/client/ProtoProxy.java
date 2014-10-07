@@ -32,6 +32,8 @@ package com.baco.protorpc.client;
 
 import com.baco.protorpc.api.ProtoSession;
 import com.baco.protorpc.exceptions.ProtoTransportException;
+import com.baco.protorpc.exceptions.RemoteServerException;
+import com.baco.protorpc.exceptions.ServerResponseNullException;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.ProtoProxySessionRetriever;
 import com.baco.protorpc.util.ProtoSessionImpl;
@@ -63,7 +65,6 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.HttpsURLConnection;
 
@@ -80,17 +81,20 @@ public class ProtoProxy
 
     private static final Long serialVersionUID = 1l;
 
+    private static final Integer PROTO_REQUEST_TIMEOUT = 500000;
+
     protected ProtoProxyFactory factory;
-    private URL url;
+    private final URL url;
     private boolean isSecure = false;
-    private ProtoRemoteExceptionHandler exHandler;
-    private ProtoProxySessionRetriever sesRetriever;
+    private final ProtoRemoteExceptionHandler exHandler;
+    private final ProtoProxySessionRetriever sesRetriever;
     private final Map<Method, String> methodMap = new ConcurrentHashMap<Method, String>();
     private static ThreadLocal<LinkedBuffer> threadBuffer = new ThreadLocal();
 
-    protected ProtoProxy(URL url, ProtoProxyFactory factory, Class<?> type,
-            boolean isSecure, ProtoRemoteExceptionHandler exHandler,
-            ProtoProxySessionRetriever sesRetriever) {
+    protected ProtoProxy(final URL url, final ProtoProxyFactory factory,
+            final Class<?> type,
+            final boolean isSecure, final ProtoRemoteExceptionHandler exHandler,
+            final ProtoProxySessionRetriever sesRetriever) {
         this.factory = factory;
         this.url = url;
         this.isSecure = isSecure;
@@ -153,12 +157,12 @@ public class ProtoProxy
          */
         connection.setDoOutput(true);
         connection.setDoInput(true);
-        connection.setReadTimeout(500000);
+        connection.setReadTimeout(PROTO_REQUEST_TIMEOUT);
         try {
             connection.connect();
         } catch (IOException ex) {
             ProtoTransportException pex = new ProtoTransportException(
-                    "Error al conectar", ex.getMessage(), "No stacktrace");
+                    "Network error", ex);
             if (exHandler != null) {
                 exHandler.processException(pex);
             }
@@ -201,9 +205,7 @@ public class ProtoProxy
             Object value = response.getResult();
             return value;
         } else {
-            ProtoTransportException pex = new ProtoTransportException(
-                    "Transport error", "Null response received from server",
-                    "No stacktrace available");
+            ServerResponseNullException pex = new ServerResponseNullException(null);
             if (exHandler != null) {
                 exHandler.processException(pex);
             }
