@@ -11,19 +11,13 @@ import com.baco.protorpc.api.ProtoSession;
  * @author deiby.nahuat
  */
 public class ProtoSessionImpl
-        implements ProtoSession {
+        extends ProtoSession {
 
     private static final long serialVersionUID = 6L;
     private final String DEFAULT = "DEFAULT_SESSION";
     
-    @Override
-    public String getValue(String key) {
-        return DEFAULT;
+    public ProtoSessionImpl() {
+        super.setValue(DEFAULT, DEFAULT);
     }
-
-    @Override
-    public void setValue(String key, String value) {
-        throw new UnsupportedOperationException("Cannot set default value");
-    }
-
+    
 }
