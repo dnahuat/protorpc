@@ -42,7 +42,7 @@ public class ProtoSession implements Serializable {
     
     private final Map<String, String> valueMap = new ConcurrentHashMap<String, String>();
     
-    protected String  getValue(String key) {
+    public String  getValue(String key) {
         return valueMap.get(key);
     }
     
