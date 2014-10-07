@@ -30,7 +30,7 @@
  */
 package com.baco.protorpc.server;
 
-import com.baco.protorpc.util.ProtoSession;
+import com.baco.protorpc.api.ProtoSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

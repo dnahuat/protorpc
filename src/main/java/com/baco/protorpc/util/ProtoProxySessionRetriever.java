@@ -3,6 +3,8 @@
  */
 package com.baco.protorpc.util;
 
+import com.baco.protorpc.api.ProtoSession;
+
 /**
  * Definicion de interface para obtencion de sesion
  * @author deiby.nahuat

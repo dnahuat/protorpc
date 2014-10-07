@@ -30,8 +30,8 @@
  */
 package com.baco.protorpc.util;
 
+import com.baco.protorpc.api.ProtoSession;
 import java.io.Serializable;
-import java.util.Arrays;
 
 /**
  * ProtoProxy request transporter

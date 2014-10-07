@@ -30,7 +30,8 @@
  */
 package com.baco.protorpc.server;
 
-import com.baco.protorpc.util.ProtoSession;
+import com.baco.protorpc.api.ProtoSession;
+import com.baco.protorpc.util.ProtoSessionImpl;
 import java.util.UUID;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -57,6 +58,8 @@ public final class ProtoContext {
     private ProtoSession session;
     /* The number of clients this context is serving */
     private int contextCount = 0;
+    /* The default session */
+    private static final ProtoSession defaultSession = new ProtoSessionImpl();
 
     private ProtoContext() {
     }
@@ -67,6 +70,7 @@ public final class ProtoContext {
      * @param request The client request
      * @param serviceUuid The service UUID
      * @param serviceName The service name
+     * @param session
      * @throws ServletException
      */
     public static void initContext(ServletRequest request,
@@ -146,7 +150,7 @@ public final class ProtoContext {
         if (context != null) {
             return context.session;
         } else {
-            return new ProtoSession("unknown", UUID.randomUUID().toString(), "unknown_client");
+            return defaultSession;
         }
     }
 

@@ -30,10 +30,11 @@
  */
 package com.baco.protorpc.client;
 
+import com.baco.protorpc.api.ProtoSession;
 import com.baco.protorpc.exceptions.ProtoTransportException;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.ProtoProxySessionRetriever;
-import com.baco.protorpc.util.ProtoSession;
+import com.baco.protorpc.util.ProtoSessionImpl;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
 import com.dyuproject.protostuff.Input;
@@ -74,7 +75,8 @@ import javax.net.ssl.HttpsURLConnection;
  *
  * @author deiby_nahuat
  */
-public class ProtoProxy implements InvocationHandler, Serializable {
+public class ProtoProxy
+        implements InvocationHandler, Serializable {
 
     private static final Long serialVersionUID = 1l;
 
@@ -118,8 +120,10 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         dis.registerDelegate(TIMESTAMP_DELEGATE);
         dis.registerDelegate(DATE_DELEGATE);
         dis.registerDelegate(TIME_DELEGATE);
-        Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(RequestEnvelope.class);
-        Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(ResponseEnvelope.class);
+        Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(
+                RequestEnvelope.class);
+        Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(
+                ResponseEnvelope.class);
 
         String uniqueName = methodMap.get(method);
         InputStream is;
@@ -138,9 +142,11 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         /**
          * Retrieve session
          */
-        ProtoSession session = new ProtoSession("unknown", UUID.randomUUID().toString(), "unknown_client");
+        ProtoSession session = null;
         if (sesRetriever != null && sesRetriever.getSession() != null) {
             session = sesRetriever.getSession();
+        } else {
+            session = new ProtoSessionImpl();
         }
         /*
          * Configure connection
@@ -151,7 +157,8 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         try {
             connection.connect();
         } catch (IOException ex) {
-            ProtoTransportException pex = new ProtoTransportException("Error al conectar", ex.getMessage(), "No stacktrace");
+            ProtoTransportException pex = new ProtoTransportException(
+                    "Error al conectar", ex.getMessage(), "No stacktrace");
             if (exHandler != null) {
                 exHandler.processException(pex);
             }
@@ -160,7 +167,8 @@ public class ProtoProxy implements InvocationHandler, Serializable {
         /*
          * Request prepare
          */
-        RequestEnvelope request = new RequestEnvelope(uniqueName, session, (args != null && args.length > 0) ? args : null);
+        RequestEnvelope request = new RequestEnvelope(uniqueName, session,
+                (args != null && args.length > 0) ? args : null);
 
         /*
          * Write to stream and close it
@@ -193,7 +201,9 @@ public class ProtoProxy implements InvocationHandler, Serializable {
             Object value = response.getResult();
             return value;
         } else {
-            ProtoTransportException pex = new ProtoTransportException("Transport error", "Null response received from server", "No stacktrace available");
+            ProtoTransportException pex = new ProtoTransportException(
+                    "Transport error", "Null response received from server",
+                    "No stacktrace available");
             if (exHandler != null) {
                 exHandler.processException(pex);
             }
@@ -215,12 +225,14 @@ public class ProtoProxy implements InvocationHandler, Serializable {
             return new Timestamp(input.readFixed64());
         }
 
-        public void writeTo(Output output, int number, Timestamp value, boolean repeated)
+        public void writeTo(Output output, int number, Timestamp value,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, value.getTime(), repeated);
         }
 
-        public void transfer(Pipe pipe, Input input, Output output, int number, boolean repeated)
+        public void transfer(Pipe pipe, Input input, Output output, int number,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, input.readFixed64(), repeated);
         }
@@ -241,12 +253,14 @@ public class ProtoProxy implements InvocationHandler, Serializable {
             return new Time(input.readFixed64());
         }
 
-        public void writeTo(Output output, int number, Time value, boolean repeated)
+        public void writeTo(Output output, int number, Time value,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, value.getTime(), repeated);
         }
 
-        public void transfer(Pipe pipe, Input input, Output output, int number, boolean repeated)
+        public void transfer(Pipe pipe, Input input, Output output, int number,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, input.readFixed64(), repeated);
         }
@@ -267,12 +281,14 @@ public class ProtoProxy implements InvocationHandler, Serializable {
             return new Date(input.readFixed64());
         }
 
-        public void writeTo(Output output, int number, Date value, boolean repeated)
+        public void writeTo(Output output, int number, Date value,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, value.getTime(), repeated);
         }
 
-        public void transfer(Pipe pipe, Input input, Output output, int number, boolean repeated)
+        public void transfer(Pipe pipe, Input input, Output output, int number,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, input.readFixed64(), repeated);
         }
