@@ -30,7 +30,9 @@
  */
 package com.baco.protorpc.server;
 
+import com.baco.protorpc.api.SessionValidator;
 import com.baco.protorpc.exceptions.ClientRequestNullException;
+import com.baco.protorpc.exceptions.ClientRequestRejectedException;
 import com.baco.protorpc.exceptions.MethodDoesntExistsException;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.RequestEnvelope;
@@ -60,7 +62,6 @@ import java.lang.reflect.Method;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.servlet.ServletRequest;
@@ -76,12 +77,15 @@ import javax.servlet.ServletRequest;
 public class ProtoProxy {
 
     private final Object srvImplementation;
-    private Map<String, Method> methodMap =  new ConcurrentHashMap<String, Method>();
+    private final SessionValidator[] sessionValidators;
+    private Map<String, Method> methodMap = new ConcurrentHashMap<String, Method>();
     private static ThreadLocal<LinkedBuffer> threadBuffer = new ThreadLocal();
 
-    protected ProtoProxy(final Object srvImplementation, 
-                            final Class srvDescriptor) throws IllegalArgumentException {
+    protected ProtoProxy(final Object srvImplementation,
+            final Class srvDescriptor,
+            final SessionValidator[] sessionValidators) throws IllegalArgumentException {
         this.srvImplementation = srvImplementation;
+        this.sessionValidators = sessionValidators;
         /*
          * Fill method map
          */
@@ -91,10 +95,13 @@ public class ProtoProxy {
         }
 
         if (srvImplementation == null) {
-            throw new IllegalArgumentException("Service Implementation cannot be null");
+            throw new IllegalArgumentException(
+                    "Service Implementation cannot be null");
         }
         if (!srvDescriptor.isAssignableFrom(srvImplementation.getClass())) {
-            throw new IllegalArgumentException("Service " + srvImplementation + " doesn't implements " + srvDescriptor.getName());
+            throw new IllegalArgumentException(
+                    "Service " + srvImplementation + " doesn't implements " + srvDescriptor.
+                    getName());
         }
     }
 
@@ -106,7 +113,8 @@ public class ProtoProxy {
      * @param os Response Output
      * @throws Exception
      */
-    public void invoke(ServletRequest servletRequest, InputStream is, OutputStream os) throws Exception {
+    public void invoke(ServletRequest servletRequest, InputStream is,
+            OutputStream os) throws Exception {
         /*
          * Prepare buffer Reuses thread buffer or creates a new buffer
          */
@@ -122,15 +130,17 @@ public class ProtoProxy {
         /**
          * Prepare schemas
          */
-        DefaultIdStrategy dis = (DefaultIdStrategy)RuntimeEnv.ID_STRATEGY;
+        DefaultIdStrategy dis = (DefaultIdStrategy) RuntimeEnv.ID_STRATEGY;
         dis.registerDelegate(TIMESTAMP_DELEGATE);
         dis.registerDelegate(DATE_DELEGATE);
         dis.registerDelegate(TIME_DELEGATE);
-        Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(RequestEnvelope.class);
-        Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(ResponseEnvelope.class);
+        Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(
+                RequestEnvelope.class);
+        Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(
+                ResponseEnvelope.class);
         /**
          * Obtain request from decompressed input stream
-         */        
+         */
         RequestEnvelope request = schema.newMessage();
         ProtostuffIOUtil.mergeFrom(gis, request, schema);
         gis.close();
@@ -141,8 +151,10 @@ public class ProtoProxy {
         /*
          * Check request validity
          */
-        if (request == null || request.getMethodName() == null || request.getMethodName().trim().isEmpty()) {
-            ResponseEnvelope response = new ResponseEnvelope(1, null, new ClientRequestNullException());
+        if (request == null || request.getMethodName() == null || request.
+                getMethodName().trim().isEmpty()) {
+            ResponseEnvelope response = new ResponseEnvelope(1, null,
+                    new ClientRequestNullException());
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
@@ -155,7 +167,8 @@ public class ProtoProxy {
          * Check if method exists
          */
         if (methodMap.get(request.getMethodName()) == null) {
-            ResponseEnvelope response = new ResponseEnvelope(1, null, new MethodDoesntExistsException(request.getMethodName()));
+            ResponseEnvelope response = new ResponseEnvelope(1, null,
+                    new MethodDoesntExistsException(request.getMethodName()));
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
@@ -175,7 +188,9 @@ public class ProtoProxy {
          * stored method
          */
         if (values.length != args.length) {
-            ResponseEnvelope response = new ResponseEnvelope(1, null, new IllegalArgumentException("Protoservice argument number doesn't match passed argument count"));
+            ResponseEnvelope response = new ResponseEnvelope(1, null,
+                    new IllegalArgumentException(
+                            "Protoservice argument number doesn't match passed argument count"));
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
@@ -183,6 +198,28 @@ public class ProtoProxy {
                 gos.close();
             }
             return;
+        }
+        /**
+         * Process session validators
+         */
+        if (sessionValidators != null && sessionValidators.length > 0) {
+            try {
+                for (SessionValidator sv : sessionValidators) {
+                    sv.checkSessionValid(request.getSession());
+                }
+            } catch (ClientRequestRejectedException ex) {
+                /**
+                 * Si ocurre algun error se devuelve el motivo
+                 */
+                ResponseEnvelope response = new ResponseEnvelope(1, null, ex);
+                try {
+                    ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+                } finally {
+                    buffer.clear();
+                    gos.close();
+                }
+                return;
+            }
         }
         /*
          * Invoke method
@@ -192,7 +229,9 @@ public class ProtoProxy {
             /*
              * Initialize servlet context
              */
-            ProtoContext.initContext(servletRequest, request.getMethodName(), method.getDeclaringClass().getCanonicalName(), request.getSession());
+            ProtoContext.initContext(servletRequest, request.getMethodName(),
+                    method.getDeclaringClass().getCanonicalName(), request.
+                    getSession());
             result = method.invoke(srvImplementation, values);
         } catch (Exception e) {
             Throwable e1 = e;
@@ -258,18 +297,20 @@ public class ProtoProxy {
             return new Timestamp(input.readFixed64());
         }
 
-        public void writeTo(Output output, int number, Timestamp value, boolean repeated)
+        public void writeTo(Output output, int number, Timestamp value,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, value.getTime(), repeated);
         }
 
-        public void transfer(Pipe pipe, Input input, Output output, int number, boolean repeated)
+        public void transfer(Pipe pipe, Input input, Output output, int number,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, input.readFixed64(), repeated);
         }
 
     };
-    
+
     static final Delegate<Time> TIME_DELEGATE = new Delegate<Time>() {
 
         public WireFormat.FieldType getFieldType() {
@@ -284,18 +325,20 @@ public class ProtoProxy {
             return new Time(input.readFixed64());
         }
 
-        public void writeTo(Output output, int number, Time value, boolean repeated)
+        public void writeTo(Output output, int number, Time value,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, value.getTime(), repeated);
         }
 
-        public void transfer(Pipe pipe, Input input, Output output, int number, boolean repeated)
+        public void transfer(Pipe pipe, Input input, Output output, int number,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, input.readFixed64(), repeated);
         }
 
     };
-    
+
     static final Delegate<Date> DATE_DELEGATE = new Delegate<Date>() {
 
         public WireFormat.FieldType getFieldType() {
@@ -310,12 +353,14 @@ public class ProtoProxy {
             return new Date(input.readFixed64());
         }
 
-        public void writeTo(Output output, int number, Date value, boolean repeated)
+        public void writeTo(Output output, int number, Date value,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, value.getTime(), repeated);
         }
 
-        public void transfer(Pipe pipe, Input input, Output output, int number, boolean repeated)
+        public void transfer(Pipe pipe, Input input, Output output, int number,
+                boolean repeated)
                 throws IOException {
             output.writeFixed64(number, input.readFixed64(), repeated);
         }

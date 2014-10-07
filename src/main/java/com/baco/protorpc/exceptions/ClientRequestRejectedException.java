@@ -31,20 +31,18 @@
 package com.baco.protorpc.exceptions;
 
 /**
- * Exception class to throw when a requested method doesn't exists 
+ *
  * @author deiby.nahuat
  */
-public class MethodDoesntExistsException extends Exception {
-	
-	private final String requestedMethod;
-	
-	public MethodDoesntExistsException(String requestedMethod) {
-		this.requestedMethod = requestedMethod;
-	}
+public class ClientRequestRejectedException extends Exception {
+    private final String reason;
+    public ClientRequestRejectedException(String reason) {
+        this.reason = reason;
+    }
 
-	@Override
-	public String getMessage() {
-		return "PROTORPC: Method: " + requestedMethod + " , doesn't exists";
-	}
-	
+    @Override
+    public String getMessage() {
+        return "PROTORPC: Server rejected request. Reason: " + reason;
+    }
+    
 }

@@ -31,30 +31,31 @@
 package com.baco.protorpc.exceptions;
 
 /**
- * CHANGELOG
- * ----------
- * 2012-02-09 : First version
+ * CHANGELOG ---------- 2012-02-09 : First version
  */
 /**
  * Exception for protorpc
+ *
  * @author deiby_nahuat
  */
-public class ProtoTransportException extends Exception {
+public class ProtoTransportException
+        extends Exception {
 
     private String detailedMessage;
-	private String stringStacktrace;
-    
-    public ProtoTransportException(String message, String detailedMessage, String stringStacktrace) {
-        super(message);
+    private String stringStacktrace;
+
+    public ProtoTransportException(String message, String detailedMessage,
+            String stringStacktrace) {
+        super("PROTORPC: " + message);
         this.detailedMessage = detailedMessage;
-		this.stringStacktrace = stringStacktrace;
+        this.stringStacktrace = stringStacktrace;
     }
     
     public String getDetailedMessage() {
-        return detailedMessage;
+        return "PROTORPC: " + detailedMessage;
     }
-    
-	public String getStringStacktrace() {
-		return stringStacktrace;
-	}    
+
+    public String getStringStacktrace() {
+        return stringStacktrace;
+    }
 }

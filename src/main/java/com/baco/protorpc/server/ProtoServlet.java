@@ -31,6 +31,7 @@
 package com.baco.protorpc.server;
 
 import com.baco.protorpc.api.ProtoSession;
+import com.baco.protorpc.api.SessionValidator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -90,13 +91,17 @@ public abstract class ProtoServlet extends GenericServlet {
         /* Init proxy */        
         serviceImpl = this;
         serviceIface = findServiceIface(serviceImpl.getClass());
-        proxy = new ProtoProxy(serviceImpl, serviceIface);
+        proxy = new ProtoProxy(serviceImpl, serviceIface, getSessionValidators());
     }
 
     @Override
-    public String getServletInfo() {
-        return "ProtoServlet";
-    }
+    public abstract String getServletInfo();
+    
+    /**
+     * Devuelve una coleccion de validadores de sesion y los aplica secuencialmente
+     * @return 
+     */
+    public abstract SessionValidator[] getSessionValidators();
 
     @Override
     public void service(ServletRequest request, ServletResponse response) throws ServletException, IOException {
@@ -107,6 +112,9 @@ public abstract class ProtoServlet extends GenericServlet {
             PrintWriter out = res.getWriter();
             res.setContentType("text/html");
             out.println("<h1>ProtoRpc Requires POST</h1>");
+            out.print("<p>");
+            out.print(getServletInfo());
+            out.println("</p>");
             return;
         } 
         /* Invokes proxy */

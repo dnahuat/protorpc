@@ -28,23 +28,21 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  */
-package com.baco.protorpc.exceptions;
+package com.baco.protorpc.api;
+
+import com.baco.protorpc.exceptions.ClientRequestRejectedException;
 
 /**
- * Exception class to throw when a requested method doesn't exists 
+ * Interface para aplicar validacion a la session proto
  * @author deiby.nahuat
  */
-public class MethodDoesntExistsException extends Exception {
-	
-	private final String requestedMethod;
-	
-	public MethodDoesntExistsException(String requestedMethod) {
-		this.requestedMethod = requestedMethod;
-	}
-
-	@Override
-	public String getMessage() {
-		return "PROTORPC: Method: " + requestedMethod + " , doesn't exists";
-	}
-	
+public interface SessionValidator {
+    
+    /**
+     * Valida una sesion segun parametros de implementacion
+     * @param session La sesion a validar
+     * @return True si es valida, false de otro modo
+     */
+    void checkSessionValid(ProtoSession session) throws ClientRequestRejectedException;
+    
 }
