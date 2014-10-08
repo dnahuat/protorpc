@@ -166,7 +166,6 @@ public class ProtoProxy
             if (exHandler != null) {
                 exHandler.processException(pex);
             }
-            throw pex;
         }
         /*
          * Request prepare
@@ -199,8 +198,9 @@ public class ProtoProxy
             if (response.getStatus() > 0) {
                 if (exHandler != null) {
                     exHandler.processException(response.getThrowable());
+                } else {
+                    throw response.getThrowable();
                 }
-                throw response.getThrowable();
             }
             Object value = response.getResult();
             return value;
@@ -208,8 +208,10 @@ public class ProtoProxy
             ServerResponseNullException pex = new ServerResponseNullException(null);
             if (exHandler != null) {
                 exHandler.processException(pex);
+            } else {
+                throw pex;
             }
-            throw pex;
+            return null;
         }
     }
 
