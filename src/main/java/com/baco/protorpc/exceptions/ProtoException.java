@@ -36,13 +36,38 @@ import java.io.StringWriter;
 
 /**
  * Proto RPC exception
+ *
  * @author deiby.nahuat
  */
-public class ProtoException extends Exception {
+public class ProtoException
+        extends Exception {
+
     private final String serializableStacktrace;
+    private String message;
+
     public ProtoException(final String message, final Throwable cause) {
-        super(message);        
-        serializableStacktrace = (cause == null)?"":stacktraceToString(cause);
+        super(message);
+        serializableStacktrace = (cause == null) ? "" : stacktraceToString(cause);
+    }
+
+    /**
+     * Obtener el stacktrace en formato serializable
+     *
+     * @return Cadena de stacktrace
+     */
+    protected String getSerializableStacktrace() {
+        return serializableStacktrace;
+    }
+
+    @Override
+    public String getMessage() {
+        if (message == null) {
+            message = new StringBuilder().append(super.getMessage()).append(
+                    "\n").append("REMOTE_STACKTRACE: ").append(
+                            getSerializableStacktrace())
+                    .toString();
+        }
+        return message;
     }
 
     @Override
@@ -59,7 +84,7 @@ public class ProtoException extends Exception {
     public void printStackTrace(PrintWriter s) {
         s.println(serializableStacktrace);
     }
-    
+
     public static final String stacktraceToString(Throwable thr) {
         StringWriter sw = new StringWriter();
         thr.printStackTrace(new PrintWriter(sw));

@@ -33,10 +33,16 @@ package com.baco.protorpc.exceptions;
 /**
  * An exception to be thrown when a request hasn't the same number of arguments
  * declared on the server
+ *
  * @author deiby.nahuat
  */
-public class WrongNumberOfArgumentsException extends ProtoException {
+public class WrongNumberOfArgumentsException
+        extends ProtoException {
+
     public WrongNumberOfArgumentsException(String method, Throwable throwable) {
-        super("PROTORPC: Wrong number of arguments for method: "+method, throwable);
+        super(new StringBuilder()
+                .append("PROTORPC: Wrong number of arguments for method: ")
+                .append(method)
+                .toString(), throwable);
     }
 }

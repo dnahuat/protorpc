@@ -34,9 +34,12 @@ package com.baco.protorpc.exceptions;
  *
  * @author deiby.nahuat
  */
-public class RemoteServerException extends ProtoException {
-    
+public class RemoteServerException
+        extends ProtoException {
+
     public RemoteServerException(Throwable exception) {
-        super("PROTORPC: An exception has been thrown in the remote server.", exception);
+        super("PROTORPC: An exception has been thrown in the remote server.",
+                exception);
+        
     }
 }

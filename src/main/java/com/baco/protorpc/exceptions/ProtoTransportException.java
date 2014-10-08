@@ -39,6 +39,9 @@ public class ProtoTransportException
         extends ProtoException {
 
     public ProtoTransportException(String message, Throwable exception) {
-        super("PROTORPC: " + message, exception);
+        super(new StringBuilder()
+                .append("PROTORPC: ")
+                .append(message)
+                .toString(), exception);
     }
 }

@@ -36,7 +36,10 @@ package com.baco.protorpc.exceptions;
  */
 public class ClientRequestRejectedException extends ProtoException {
     public ClientRequestRejectedException(String reason, Throwable thr) {
-        super("PROTORPC: Server rejected request. Reason: " + reason, thr);
+        super(new StringBuilder()
+                        .append("PROTORPC: Server rejected request. Reason: ")
+                        .append(reason)
+                        .toString(), thr);
     }
 
 }

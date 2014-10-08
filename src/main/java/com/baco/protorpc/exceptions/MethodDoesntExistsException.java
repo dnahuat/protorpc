@@ -39,7 +39,11 @@ public class MethodDoesntExistsException
         extends ProtoException {
 
     public MethodDoesntExistsException(String requestedMethod, Throwable thr) {
-        super("PROTORPC: Method: " + requestedMethod + " , doesn't exists", thr);
+        super(new StringBuilder()
+                .append("PROTORPC: Method: ")
+                .append(requestedMethod)
+                .append(" , doesn't exists")
+                .toString(), thr);
     }
 
 }
