@@ -93,7 +93,7 @@ public abstract class ProtoServlet extends GenericServlet {
         serviceIface = findServiceIface(serviceImpl.getClass());
         proxy = new ProtoProxy(serviceImpl, serviceIface, getSessionValidators());
     }
-
+    
     @Override
     public abstract String getServletInfo();
     

@@ -30,7 +30,7 @@
  */
 package com.baco.protorpc.api;
 
-import com.baco.protorpc.exceptions.ClientRequestRejectedException;
+import com.baco.protorpc.exceptions.ProtoException;
 
 /**
  * Interface para aplicar validacion a la session proto
@@ -43,6 +43,6 @@ public interface SessionValidator {
      * @param session La sesion a validar
      * @return True si es valida, false de otro modo
      */
-    void checkSessionValid(ProtoSession session) throws ClientRequestRejectedException;
+    void checkSessionValid(ProtoSession session) throws ProtoException;
     
 }

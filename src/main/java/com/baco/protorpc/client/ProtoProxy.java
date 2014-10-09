@@ -32,7 +32,6 @@ package com.baco.protorpc.client;
 
 import com.baco.protorpc.api.ProtoSession;
 import com.baco.protorpc.exceptions.ProtoTransportException;
-import com.baco.protorpc.exceptions.RemoteServerException;
 import com.baco.protorpc.exceptions.ServerResponseNullException;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.ProtoProxySessionRetriever;
@@ -59,6 +58,7 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.sql.Date;
@@ -136,12 +136,23 @@ public class ProtoProxy
          * Http connection
          */
         URLConnection connection;
-        if (isSecure) {
-            connection = (HttpsURLConnection) url.openConnection();
-            ((HttpsURLConnection) connection).setRequestMethod("POST");
-        } else {
-            connection = (HttpURLConnection) url.openConnection();
-            ((HttpURLConnection) connection).setRequestMethod("POST");
+        try {
+            if (isSecure) {
+                connection = (HttpsURLConnection) url.openConnection();
+                ((HttpsURLConnection) connection).setRequestMethod("POST");
+            } else {
+                connection = (HttpURLConnection) url.openConnection();
+                ((HttpURLConnection) connection).setRequestMethod("POST");
+            }
+        } catch (IOException ex) {
+            ProtoTransportException pex = new ProtoTransportException(
+                    "I/O error while open connection.", ex);
+            if (exHandler != null) {
+                exHandler.processException(pex);
+            } else {
+                throw pex;
+            }
+            return null;
         }
         /**
          * Retrieve session
@@ -160,12 +171,24 @@ public class ProtoProxy
         connection.setReadTimeout(PROTO_REQUEST_TIMEOUT);
         try {
             connection.connect();
-        } catch (IOException ex) {
+        } catch (SocketTimeoutException ex) {
             ProtoTransportException pex = new ProtoTransportException(
                     "Network error", ex);
             if (exHandler != null) {
                 exHandler.processException(pex);
+            } else {
+                throw pex;
             }
+            return null;
+        } catch (IOException ex) {
+            ProtoTransportException pex = new ProtoTransportException(
+                    "Couldn't connect to remote host, connection timed out", ex);
+            if (exHandler != null) {
+                exHandler.processException(pex);
+            } else {
+                throw pex;
+            }
+            return null;
         }
         /*
          * Request prepare
@@ -189,11 +212,23 @@ public class ProtoProxy
         /*
          * Read server response
          */
-        is = connection.getInputStream();
-        InflaterInputStream gis = new InflaterInputStream(is);
-        ResponseEnvelope response = schemaResp.newMessage();
-        ProtostuffIOUtil.mergeFrom(gis, response, schemaResp);
-        gis.close();
+        ResponseEnvelope response = null;
+        try {
+            is = connection.getInputStream();
+            InflaterInputStream gis = new InflaterInputStream(is);
+            response = schemaResp.newMessage();
+            ProtostuffIOUtil.mergeFrom(gis, response, schemaResp);
+            gis.close();
+        } catch (IOException ex) {
+            ProtoTransportException pex = new ProtoTransportException(
+                    "Couldn't read server response, connection failed.", ex);
+            if (exHandler != null) {
+                exHandler.processException(pex);
+            } else {
+                throw pex;
+            }
+            return null;
+        }
         if (response != null) {
             if (response.getStatus() > 0) {
                 if (exHandler != null) {
@@ -205,7 +240,8 @@ public class ProtoProxy
             Object value = response.getResult();
             return value;
         } else {
-            ServerResponseNullException pex = new ServerResponseNullException(null);
+            ServerResponseNullException pex = new ServerResponseNullException(
+                    null);
             if (exHandler != null) {
                 exHandler.processException(pex);
             } else {

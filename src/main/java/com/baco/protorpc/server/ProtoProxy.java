@@ -32,8 +32,8 @@ package com.baco.protorpc.server;
 
 import com.baco.protorpc.api.SessionValidator;
 import com.baco.protorpc.exceptions.ClientRequestNullException;
-import com.baco.protorpc.exceptions.ClientRequestRejectedException;
 import com.baco.protorpc.exceptions.MethodDoesntExistsException;
+import com.baco.protorpc.exceptions.ProtoException;
 import com.baco.protorpc.exceptions.RemoteServerException;
 import com.baco.protorpc.exceptions.WrongNumberOfArgumentsException;
 import com.baco.protorpc.util.ProtoEncoders;
@@ -93,7 +93,7 @@ public class ProtoProxy {
          * Fill method map
          */
         Method[] methods = srvDescriptor.getMethods();
-        for (Method method : methods) {     
+        for (Method method : methods) {
             methodMap.put(ProtoEncoders.getMethodNameAsSha1(method), method);
         }
 
@@ -171,9 +171,9 @@ public class ProtoProxy {
          */
         if (methodMap.get(request.getMethodName()) == null) {
             ResponseEnvelope response = new ResponseEnvelope(1, null,
-                    new MethodDoesntExistsException(request.getMethodName(), 
+                    new MethodDoesntExistsException(request.getMethodName(),
                             new IllegalArgumentException(
-                            "Protoservice, requested method doesn't exists"
+                                    "Protoservice, requested method doesn't exists"
                             ).fillInStackTrace()));
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
@@ -195,9 +195,9 @@ public class ProtoProxy {
          */
         if (values.length != args.length) {
             ResponseEnvelope response = new ResponseEnvelope(1, null,
-                    new WrongNumberOfArgumentsException(request.getMethodName(), 
+                    new WrongNumberOfArgumentsException(request.getMethodName(),
                             new IllegalArgumentException(
-                            "Protoservice, wrong number of arguments in request"
+                                    "Protoservice, wrong number of arguments in request"
                             ).fillInStackTrace()));
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
@@ -215,7 +215,7 @@ public class ProtoProxy {
                 for (SessionValidator sv : sessionValidators) {
                     sv.checkSessionValid(request.getSession());
                 }
-            } catch (ClientRequestRejectedException ex) {
+            } catch (ProtoException ex) {
                 /**
                  * Si ocurre algun error se devuelve el motivo
                  */
