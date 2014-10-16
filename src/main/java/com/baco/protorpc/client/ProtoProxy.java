@@ -83,40 +83,23 @@ public class ProtoProxy
 
     private static final Integer PROTO_REQUEST_TIMEOUT = 500000;
 
-    protected ProtoProxyFactory factory;
-    private final URL url;
+    private URL url;
     private boolean isSecure = false;
-    private final ProtoRemoteExceptionHandler exHandler;
-    private final ProtoProxySessionRetriever sesRetriever;
+    private ProtoRemoteExceptionHandler exHandler;
+    private ProtoProxySessionRetriever sesRetriever;
     private final Map<Method, String> methodMap = new ConcurrentHashMap<Method, String>();
-    private static ThreadLocal<LinkedBuffer> threadBuffer = new ThreadLocal();
+    private final LinkedBuffer buffer;
+    private final Schema<RequestEnvelope> schema;
+    private final Schema<ResponseEnvelope> schemaResp;
 
-    protected ProtoProxy(final URL url, final ProtoProxyFactory factory,
-            final Class<?> type,
-            final boolean isSecure, final ProtoRemoteExceptionHandler exHandler,
+    protected ProtoProxy(final URL url, final boolean isSecure, 
+            final ProtoRemoteExceptionHandler exHandler,
             final ProtoProxySessionRetriever sesRetriever) {
-        this.factory = factory;
+        this.buffer = LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE);
         this.url = url;
         this.isSecure = isSecure;
         this.exHandler = exHandler;
         this.sesRetriever = sesRetriever;
-    }
-
-    public URL getURL() {
-        return url;
-    }
-
-    @Override
-    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        methodMap.put(method, ProtoEncoders.getMethodNameAsSha1(method));
-        /*
-         * Get or initialize current buffer
-         */
-        LinkedBuffer buffer = threadBuffer.get();
-        if (buffer == null) {
-            buffer = LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE);
-            threadBuffer.set(buffer);
-        }
         /**
          * Prepare schemas for wrappers
          */
@@ -124,11 +107,41 @@ public class ProtoProxy
         dis.registerDelegate(TIMESTAMP_DELEGATE);
         dis.registerDelegate(DATE_DELEGATE);
         dis.registerDelegate(TIME_DELEGATE);
-        Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(
+        schema = RuntimeSchema.getSchema(
                 RequestEnvelope.class);
-        Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(
+        schemaResp = RuntimeSchema.getSchema(
                 ResponseEnvelope.class);
+    }
 
+    public URL getURL() {
+        return url;
+    }
+
+    public void setURL(URL url) {
+        this.url = url;
+    }
+
+    public final void setExceptionHandler(
+            final ProtoRemoteExceptionHandler exHandler) {
+        this.exHandler = exHandler;
+    }
+
+    public final void setSessionRetriever(
+            final ProtoProxySessionRetriever sesRetriever) {
+        this.sesRetriever = sesRetriever;
+    }
+
+    public final void setSecure(boolean secure) {
+        this.isSecure = secure;
+    }
+
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        methodMap.put(method, ProtoEncoders.getMethodNameAsSha1(method));
+        /*
+         * Initialize current buffer
+         */
+        buffer.clear();
         String uniqueName = methodMap.get(method);
         InputStream is;
         OutputStream os;
@@ -203,11 +216,20 @@ public class ProtoProxy
         DeflaterOutputStream gos = new DeflaterOutputStream(os);
         try {
             ProtostuffIOUtil.writeTo(gos, request, schema, buffer);
+            gos.flush();
+            gos.close();
+        } catch (IOException ex) {
+            ProtoTransportException pex = new ProtoTransportException(
+                    "Error while writing to server.", ex);
+            if (exHandler != null) {
+                exHandler.processException(pex);
+            } else {
+                throw pex;
+            }
+            return null;
         } finally {
             buffer.clear();
         }
-        gos.flush();
-        gos.close();
 
         /*
          * Read server response

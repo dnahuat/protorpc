@@ -78,7 +78,7 @@ public class ProtoProxyFactory {
             throw new NullPointerException("Service interface class must not be null");
         }
         InvocationHandler handler;
-        handler = new ProtoProxy(url, this, iface, isHttps, exHandler, sesRetriever);
+        handler = new ProtoProxy(url, isHttps, exHandler, sesRetriever);
         return (T)Proxy.newProxyInstance(loader, new Class[]{iface} , handler);
     }
 }

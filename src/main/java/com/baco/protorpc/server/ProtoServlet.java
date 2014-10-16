@@ -30,7 +30,6 @@
  */
 package com.baco.protorpc.server;
 
-import com.baco.protorpc.api.ProtoSession;
 import com.baco.protorpc.api.SessionValidator;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,17 +44,17 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * CHANGELOG
- * ----------
- * 2012-02-09 : First version
+ * CHANGELOG ---------- 2012-02-09 : First version
  */
 /**
  * ProtoRpc servlet
  *
  * @author deiby_nahuat
  */
-public abstract class ProtoServlet extends GenericServlet {    
+public abstract class ProtoServlet
+        extends GenericServlet {
     /* Invocation proxy */
+
     private ProtoProxy proxy;
     /* Service implementation */
     private Object serviceImpl;
@@ -64,6 +63,7 @@ public abstract class ProtoServlet extends GenericServlet {
 
     /**
      * Finds the service interface class
+     *
      * @param implClass The implementation class
      * @return The service interface class
      */
@@ -82,24 +82,35 @@ public abstract class ProtoServlet extends GenericServlet {
     }
 
     @Override
-    public void init(ServletConfig config) throws ServletException {        
+    public void init(ServletConfig config) throws ServletException {
         super.init(config);
-        
+
         if (getClass().equals(ProtoServlet.class)) {
             throw new ServletException("Server must extend ProtoServlet");
         }
-        /* Init proxy */        
+        /* Init proxy */
         serviceImpl = this;
         serviceIface = findServiceIface(serviceImpl.getClass());
         proxy = new ProtoProxy(serviceImpl, serviceIface, getSessionValidators());
     }
-    
+
+    @Override
+    public void destroy() {
+        super.destroy();
+        /**
+         * Removes buffer from memory
+         */
+        ProtoProxy.destroyBuffer();
+    }
+
     @Override
     public abstract String getServletInfo();
-    
+
     /**
-     * Devuelve una coleccion de validadores de sesion y los aplica secuencialmente
-     * @return 
+     * Devuelve una coleccion de validadores de sesion y los aplica
+     * secuencialmente
+     *
+     * @return
      */
     public abstract SessionValidator[] getSessionValidators();
 
@@ -108,7 +119,8 @@ public abstract class ProtoServlet extends GenericServlet {
         HttpServletRequest req = (HttpServletRequest) request;
         HttpServletResponse res = (HttpServletResponse) response;
         if (!req.getMethod().equals("POST")) {
-            res.sendError(500, "This server only accepts Proto-serialized requests");
+            res.sendError(500,
+                    "This server only accepts Proto-serialized requests");
             PrintWriter out = res.getWriter();
             res.setContentType("text/html");
             out.println("<h1>ProtoRpc Requires POST</h1>");
@@ -116,39 +128,31 @@ public abstract class ProtoServlet extends GenericServlet {
             out.print(getServletInfo());
             out.println("</p>");
             return;
-        } 
+        }
         /* Invokes proxy */
         try {
             InputStream is = request.getInputStream();
             OutputStream os = response.getOutputStream();
-            invoke(request, is, os);
+            invoke(req, is, os);
         } catch (RuntimeException e) {
-            throw e;
-        } catch (ServletException e) {
             throw e;
         } catch (Throwable e) {
             throw new ServletException(e);
         }
     }
 
-	protected ProtoContext getContext() {
-		return ProtoContext.getContext();
-	}
-
-	protected ProtoSession getSession() {
-		return ProtoContext.getContextSession();
-	}
-
     /**
      * Invoke proxy method
+     *
      * @param request The client request
      * @param is The input stream from client
      * @param os The output stream to client
-     * @throws Exception 
+     * @throws Exception
      */
-    protected void invoke(ServletRequest request, InputStream is, OutputStream os)
+    protected void invoke(HttpServletRequest request, InputStream is,
+            OutputStream os)
             throws Exception {
         proxy.invoke(request, is, os);
     }
-    
+
 }

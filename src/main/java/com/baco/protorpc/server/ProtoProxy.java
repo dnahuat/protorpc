@@ -66,7 +66,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.servlet.ServletRequest;
+import javax.servlet.http.HttpServletRequest;
 
 /**
  * CHANGELOG ---------- 2012-02-09 : First version
@@ -107,6 +107,13 @@ public class ProtoProxy {
                     getName());
         }
     }
+    
+    public static void destroyBuffer() {
+        LinkedBuffer buffer = threadBuffer.get();
+        if(buffer != null) {
+            threadBuffer.remove();
+        }
+    }
 
     /**
      * Invokes the requested method in the server implementation
@@ -116,15 +123,17 @@ public class ProtoProxy {
      * @param os Response Output
      * @throws Exception
      */
-    public void invoke(ServletRequest servletRequest, InputStream is,
+    public void invoke(HttpServletRequest servletRequest, InputStream is,
             OutputStream os) throws Exception {
         /*
-         * Prepare buffer Reuses thread buffer or creates a new buffer
+         * Prepare buffer reuses thread buffer or creates a new buffer
          */
         LinkedBuffer buffer = threadBuffer.get();
         if (buffer == null) {
             buffer = LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE);
             threadBuffer.set(buffer);
+        } else {
+            buffer.clear();
         }
         /**
          * Obtain decompressed input stream
@@ -234,12 +243,9 @@ public class ProtoProxy {
          */
         Object result = null;
         try {
-            /*
-             * Initialize servlet context
+            /**
+             * Call proxy method
              */
-            ProtoContext.initContext(servletRequest, request.getMethodName(),
-                    method.getDeclaringClass().getCanonicalName(), request.
-                    getSession());
             result = method.invoke(srvImplementation, values);
         } catch (Exception e) {
             Throwable e1 = e;
@@ -252,7 +258,8 @@ public class ProtoProxy {
             /**
              * Preparacion de respuesta
              */
-            ResponseEnvelope response = new ResponseEnvelope(1, null, new RemoteServerException(e1));
+            ResponseEnvelope response = new ResponseEnvelope(1, null,
+                    new RemoteServerException(e1));
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
@@ -260,8 +267,6 @@ public class ProtoProxy {
                 gos.close();
             }
             return;
-        } finally {
-            ProtoContext.terminateContext();
         }
         /*
          * Write response to output
