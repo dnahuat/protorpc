@@ -39,6 +39,7 @@ import com.baco.protorpc.exceptions.WrongNumberOfArgumentsException;
 import com.baco.protorpc.util.ProtoBufferPool;
 import com.baco.protorpc.util.ProtoConfig;
 import com.baco.protorpc.util.ProtoEncoders;
+import com.baco.protorpc.util.ProtoHandshake;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
 import io.protostuff.Input;
@@ -122,22 +123,6 @@ public class ProtoProxy {
             OutputStream os) throws Exception {
         LinkedBuffer buffer = null;
         try {
-            String serMode = ProtoConfig.getSerializationMode();
-            Boolean compEnabled = ProtoConfig.isCompressionEnabled();
-            Boolean isJsonNumeric = ProtoConfig.isJSONNumerical();
-
-            buffer = ProtoBufferPool.takeBuffer();
-            buffer.clear();
-
-            /**
-             * Obtain decompressed input stream
-             */
-            InputStream sis;
-            if (compEnabled) {
-                sis = new SnappyInputStream(is);
-            } else {
-                sis = is;
-            }
             /**
              * Prepare schemas
              */
@@ -149,21 +134,48 @@ public class ProtoProxy {
                     RequestEnvelope.class);
             Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(
                     ResponseEnvelope.class);
+            Schema<ProtoHandshake> schemaProto = RuntimeSchema.getSchema(
+                    ProtoHandshake.class);
+            //String serMode = ProtoConfig.getSerializationMode();
+            //Boolean compEnabled = ProtoConfig.isCompressionEnabled();
+            //Boolean isJsonNumeric = ProtoConfig.isJSONNumerical();
+
+            buffer = ProtoBufferPool.takeBuffer();
+            buffer.clear();
+
+            /**
+             * Read protocol handshake
+             */
+            ProtoHandshake ph = schemaProto.newMessage();
+            ProtostuffIOUtil.mergeDelimitedFrom(is, ph, schemaProto, buffer);
+            buffer.clear();
+
+            /**
+             * Obtain decompressed input stream
+             */
+            InputStream sis;
+            if (ph.getCompressed()) {
+                sis = new SnappyInputStream(is);
+            } else {
+                sis = is;
+            }
+
             /**
              * Obtain request from decompressed input stream
              */
             RequestEnvelope request = schema.newMessage();
-            if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+            if (ph.getRequestedProtocol() == 0) {
                 ProtostuffIOUtil.mergeFrom(sis, request, schema);
             } else {
-                JsonIOUtil.mergeFrom(sis, request, schema, isJsonNumeric);
+                JsonIOUtil.
+                        mergeFrom(sis, request, schema, ph.getJsonNumerical());
             }
             sis.close();
             /**
              * Obtain compressed output stream
              */
             OutputStream sos;
-            if (compEnabled) {
+            if (ph.getCompressed()) {
                 sos = new SnappyOutputStream(os);
             } else {
                 sos = os;
@@ -176,12 +188,12 @@ public class ProtoProxy {
                 ResponseEnvelope response = new ResponseEnvelope(1, null,
                         new ClientRequestNullException(null));
                 try {
-                    if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                    if (ph.getRequestedProtocol() == 0) {
                         ProtostuffIOUtil.writeTo(sos, response, schemaResp,
                                 buffer);
                     } else {
                         JsonIOUtil.writeTo(sos, response, schemaResp,
-                                isJsonNumeric, buffer);
+                                ph.getJsonNumerical(), buffer);
                     }
                 } finally {
                     buffer.clear();
@@ -199,12 +211,12 @@ public class ProtoProxy {
                                         "Protoservice, requested method doesn't exists"
                                 ).fillInStackTrace()));
                 try {
-                    if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                    if (ph.getRequestedProtocol() == 0) {
                         ProtostuffIOUtil.writeTo(sos, response, schemaResp,
                                 buffer);
                     } else {
                         JsonIOUtil.writeTo(sos, response, schemaResp,
-                                isJsonNumeric, buffer);
+                                ph.getJsonNumerical(), buffer);
                     }
                 } finally {
                     buffer.clear();
@@ -230,12 +242,12 @@ public class ProtoProxy {
                                         "Protoservice, wrong number of arguments in request"
                                 ).fillInStackTrace()));
                 try {
-                    if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                    if (ph.getRequestedProtocol() == 0) {
                         ProtostuffIOUtil.writeTo(sos, response, schemaResp,
                                 buffer);
                     } else {
                         JsonIOUtil.writeTo(sos, response, schemaResp,
-                                isJsonNumeric, buffer);
+                                ph.getJsonNumerical(), buffer);
                     }
                 } finally {
                     buffer.clear();
@@ -257,12 +269,12 @@ public class ProtoProxy {
                      */
                     ResponseEnvelope response = new ResponseEnvelope(1, null, ex);
                     try {
-                        if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                        if (ph.getRequestedProtocol() == 0) {
                             ProtostuffIOUtil.writeTo(sos, response, schemaResp,
                                     buffer);
                         } else {
                             JsonIOUtil.writeTo(sos, response, schemaResp,
-                                    isJsonNumeric, buffer);
+                                    ph.getJsonNumerical(), buffer);
                         }
                     } finally {
                         buffer.clear();
@@ -294,12 +306,12 @@ public class ProtoProxy {
                 ResponseEnvelope response = new ResponseEnvelope(1, null,
                         new RemoteServerException(e1));
                 try {
-                    if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                    if (ph.getRequestedProtocol() == 0) {
                         ProtostuffIOUtil.writeTo(sos, response, schemaResp,
                                 buffer);
                     } else {
                         JsonIOUtil.writeTo(sos, response, schemaResp,
-                                isJsonNumeric, buffer);
+                                ph.getJsonNumerical(), buffer);
                     }
                 } finally {
                     buffer.clear();
@@ -312,12 +324,12 @@ public class ProtoProxy {
              */
             ResponseEnvelope response = new ResponseEnvelope(0, result, null);
             try {
-                if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                if (ph.getRequestedProtocol() == 0) {
                     ProtostuffIOUtil.writeTo(sos, response, schemaResp,
                             buffer);
                 } else {
-                    JsonIOUtil.writeTo(sos, response, schemaResp, isJsonNumeric,
-                            buffer);
+                    JsonIOUtil.writeTo(sos, response, schemaResp,
+                            ph.getJsonNumerical(), buffer);
                 }
             } finally {
                 buffer.clear();

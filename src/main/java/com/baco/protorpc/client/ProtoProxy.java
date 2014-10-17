@@ -36,6 +36,7 @@ import com.baco.protorpc.exceptions.ProtoTransportException;
 import com.baco.protorpc.exceptions.ServerResponseNullException;
 import com.baco.protorpc.util.ProtoConfig;
 import com.baco.protorpc.util.ProtoEncoders;
+import com.baco.protorpc.util.ProtoHandshake;
 import com.baco.protorpc.util.ProtoProxySessionRetriever;
 import com.baco.protorpc.util.ProtoSessionImpl;
 import com.baco.protorpc.util.RequestEnvelope;
@@ -93,6 +94,7 @@ public class ProtoProxy
     private final Map<Method, String> methodMap = new ConcurrentHashMap<Method, String>();
     private final Schema<RequestEnvelope> schema;
     private final Schema<ResponseEnvelope> schemaResp;
+    private final Schema<ProtoHandshake> schemaProto;
 
     protected ProtoProxy(final URL url, final boolean isSecure,
             final ProtoRemoteExceptionHandler exHandler,
@@ -108,6 +110,7 @@ public class ProtoProxy
         dis.registerDelegate(TIMESTAMP_DELEGATE);
         dis.registerDelegate(DATE_DELEGATE);
         dis.registerDelegate(TIME_DELEGATE);
+        schemaProto = RuntimeSchema.getSchema(ProtoHandshake.class);
         schema = RuntimeSchema.getSchema(
                 RequestEnvelope.class);
         schemaResp = RuntimeSchema.getSchema(
@@ -141,11 +144,10 @@ public class ProtoProxy
         methodMap.put(method, ProtoEncoders.getMethodNameAsSha1(method));
         LinkedBuffer buffer = null;
         try {
-            String serMode = ProtoConfig.getSerializationMode();
-            Boolean compEnabled = ProtoConfig.isCompressionEnabled();
-            Boolean isJsonNumeric = ProtoConfig.isJSONNumerical();
-            
-            
+            ProtoHandshake ph = new ProtoHandshake(ProtoConfig.
+                    getSerializationMode(), ProtoConfig.isCompressionEnabled(),
+                    ProtoConfig.isJSONNumerical());
+
             buffer = ProtoBufferPool.takeBuffer();
             /*
              * Initialize current buffer
@@ -223,17 +225,39 @@ public class ProtoProxy
              * Write to stream and close it
              */
             os = connection.getOutputStream();
+            /**
+             * Write protocol handshake
+             */
+            try {
+                ProtostuffIOUtil.writeDelimitedTo(os, ph, schemaProto, buffer);
+            } catch (IOException ex) {
+                ProtoTransportException pex = new ProtoTransportException(
+                        "Error while writing protocol initiation to server.", ex);
+                if (exHandler != null) {
+                    exHandler.processException(pex);
+                } else {
+                    throw pex;
+                }
+                return null;
+            } finally {
+                buffer.clear();
+            }
+            /**
+             * Write payload
+             */
             OutputStream sos;
-            if(compEnabled) {
+            if (ph.getCompressed()) {
                 sos = new SnappyOutputStream(os);
             } else {
                 sos = os;
             }
             try {
-                if(serMode.equals(ProtoConfig.BINARY_MODE)) {
+                if (ph.getRequestedProtocol() == 0) {
                     ProtostuffIOUtil.writeTo(sos, request, schema, buffer);
                 } else {
-                    JsonIOUtil.writeTo(os, request, schema, isJsonNumeric, buffer);
+                    JsonIOUtil.writeTo(os, request, schema, ph.
+                            getJsonNumerical(),
+                            buffer);
                 }
                 sos.flush();
                 sos.close();
@@ -257,16 +281,17 @@ public class ProtoProxy
             try {
                 is = connection.getInputStream();
                 InputStream sis;
-                if(compEnabled) {
+                if (ph.getCompressed()) {
                     sis = new SnappyInputStream(is);
                 } else {
                     sis = is;
                 }
                 response = schemaResp.newMessage();
-                if(serMode.equals(ProtoConfig.JSON_MODE)) {
+                if (ph.getRequestedProtocol() == 0) {
                     ProtostuffIOUtil.mergeFrom(sis, response, schemaResp);
                 } else {
-                    JsonIOUtil.mergeFrom(sis, response, schemaResp, isJsonNumeric, buffer);
+                    JsonIOUtil.mergeFrom(sis, response, schemaResp,
+                            ph.getJsonNumerical(), buffer);
                 }
                 sis.close();
             } catch (IOException ex) {
@@ -332,7 +357,7 @@ public class ProtoProxy
 
         public void writeTo(Output output, int number, Timestamp value,
                 boolean repeated)
-                throws IOException {            
+                throws IOException {
             output.writeFixed64(number, value.getTime(), repeated);
         }
 

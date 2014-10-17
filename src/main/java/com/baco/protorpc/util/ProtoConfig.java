@@ -66,7 +66,7 @@ public final class ProtoConfig {
                 !System.getProperty("protostuff.compression.enabled").trim().isEmpty() &&
                 (System.getProperty("protostuff.compression.enabled").trim().equalsIgnoreCase("true") ||
                 System.getProperty("protostuff.compression.enabled").trim().equalsIgnoreCase("false"))) {
-            return System.getProperty("protostuff.compresssion.enabled").trim().toLowerCase().equals("true");
+            return System.getProperty("protostuff.compression.enabled").trim().toLowerCase().equals("true");
         } else {
             return Boolean.FALSE;
         }
