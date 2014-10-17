@@ -30,6 +30,7 @@
  */
 package com.baco.protorpc.client;
 
+import com.baco.protorpc.util.ProtoBufferPool;
 import com.baco.protorpc.api.ProtoSession;
 import com.baco.protorpc.exceptions.ProtoTransportException;
 import com.baco.protorpc.exceptions.ServerResponseNullException;
@@ -38,19 +39,19 @@ import com.baco.protorpc.util.ProtoProxySessionRetriever;
 import com.baco.protorpc.util.ProtoSessionImpl;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
-import com.dyuproject.protostuff.Input;
-import com.dyuproject.protostuff.LinkedBuffer;
-import com.dyuproject.protostuff.Output;
-import com.dyuproject.protostuff.Pipe;
-import com.dyuproject.protostuff.ProtostuffIOUtil;
-import com.dyuproject.protostuff.Schema;
-import com.dyuproject.protostuff.WireFormat;
-import com.dyuproject.protostuff.runtime.DefaultIdStrategy;
-import com.dyuproject.protostuff.runtime.Delegate;
-import com.dyuproject.protostuff.runtime.RuntimeEnv;
-import com.dyuproject.protostuff.runtime.RuntimeSchema;
 import com.jcraft.jzlib.DeflaterOutputStream;
 import com.jcraft.jzlib.InflaterInputStream;
+import io.protostuff.Input;
+import io.protostuff.LinkedBuffer;
+import io.protostuff.Output;
+import io.protostuff.Pipe;
+import io.protostuff.ProtostuffIOUtil;
+import io.protostuff.Schema;
+import io.protostuff.WireFormat;
+import io.protostuff.runtime.DefaultIdStrategy;
+import io.protostuff.runtime.Delegate;
+import io.protostuff.runtime.RuntimeEnv;
+import io.protostuff.runtime.RuntimeSchema;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -88,14 +89,12 @@ public class ProtoProxy
     private ProtoRemoteExceptionHandler exHandler;
     private ProtoProxySessionRetriever sesRetriever;
     private final Map<Method, String> methodMap = new ConcurrentHashMap<Method, String>();
-    private final LinkedBuffer buffer;
     private final Schema<RequestEnvelope> schema;
     private final Schema<ResponseEnvelope> schemaResp;
 
-    protected ProtoProxy(final URL url, final boolean isSecure, 
+    protected ProtoProxy(final URL url, final boolean isSecure,
             final ProtoRemoteExceptionHandler exHandler,
             final ProtoProxySessionRetriever sesRetriever) {
-        this.buffer = LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE);
         this.url = url;
         this.isSecure = isSecure;
         this.exHandler = exHandler;
@@ -138,89 +137,147 @@ public class ProtoProxy
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         methodMap.put(method, ProtoEncoders.getMethodNameAsSha1(method));
-        /*
-         * Initialize current buffer
-         */
-        buffer.clear();
-        String uniqueName = methodMap.get(method);
-        InputStream is;
-        OutputStream os;
-        /*
-         * Http connection
-         */
-        URLConnection connection;
+        LinkedBuffer buffer = null;
         try {
-            if (isSecure) {
-                connection = (HttpsURLConnection) url.openConnection();
-                ((HttpsURLConnection) connection).setRequestMethod("POST");
-            } else {
-                connection = (HttpURLConnection) url.openConnection();
-                ((HttpURLConnection) connection).setRequestMethod("POST");
+            buffer = ProtoBufferPool.takeBuffer();
+            /*
+             * Initialize current buffer
+             */
+            buffer.clear();
+            String uniqueName = methodMap.get(method);
+            InputStream is;
+            OutputStream os;
+            /*
+             * Http connection
+             */
+            URLConnection connection;
+            try {
+                if (isSecure) {
+                    connection = (HttpsURLConnection) url.openConnection();
+                    ((HttpsURLConnection) connection).setRequestMethod("POST");
+                } else {
+                    connection = (HttpURLConnection) url.openConnection();
+                    ((HttpURLConnection) connection).setRequestMethod("POST");
+                }
+            } catch (IOException ex) {
+                ProtoTransportException pex = new ProtoTransportException(
+                        "I/O error while open connection.", ex);
+                if (exHandler != null) {
+                    exHandler.processException(pex);
+                } else {
+                    throw pex;
+                }
+                return null;
             }
-        } catch (IOException ex) {
-            ProtoTransportException pex = new ProtoTransportException(
-                    "I/O error while open connection.", ex);
-            if (exHandler != null) {
-                exHandler.processException(pex);
+            /**
+             * Retrieve session
+             */
+            ProtoSession session = null;
+            if (sesRetriever != null && sesRetriever.getSession() != null) {
+                session = sesRetriever.getSession();
             } else {
-                throw pex;
+                session = new ProtoSessionImpl();
             }
-            return null;
-        }
-        /**
-         * Retrieve session
-         */
-        ProtoSession session = null;
-        if (sesRetriever != null && sesRetriever.getSession() != null) {
-            session = sesRetriever.getSession();
-        } else {
-            session = new ProtoSessionImpl();
-        }
-        /*
-         * Configure connection
-         */
-        connection.setDoOutput(true);
-        connection.setDoInput(true);
-        connection.setReadTimeout(PROTO_REQUEST_TIMEOUT);
-        try {
-            connection.connect();
-        } catch (SocketTimeoutException ex) {
-            ProtoTransportException pex = new ProtoTransportException(
-                    "Network error", ex);
-            if (exHandler != null) {
-                exHandler.processException(pex);
-            } else {
-                throw pex;
+            /*
+             * Configure connection
+             */
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
+            connection.setReadTimeout(PROTO_REQUEST_TIMEOUT);
+            try {
+                connection.connect();
+            } catch (SocketTimeoutException ex) {
+                ProtoTransportException pex = new ProtoTransportException(
+                        "Network error", ex);
+                if (exHandler != null) {
+                    exHandler.processException(pex);
+                } else {
+                    throw pex;
+                }
+                return null;
+            } catch (IOException ex) {
+                ProtoTransportException pex = new ProtoTransportException(
+                        "Couldn't connect to remote host, connection timed out",
+                        ex);
+                if (exHandler != null) {
+                    exHandler.processException(pex);
+                } else {
+                    throw pex;
+                }
+                return null;
             }
-            return null;
-        } catch (IOException ex) {
-            ProtoTransportException pex = new ProtoTransportException(
-                    "Couldn't connect to remote host, connection timed out", ex);
-            if (exHandler != null) {
-                exHandler.processException(pex);
-            } else {
-                throw pex;
-            }
-            return null;
-        }
-        /*
-         * Request prepare
-         */
-        RequestEnvelope request = new RequestEnvelope(uniqueName, session,
-                (args != null && args.length > 0) ? args : null);
+            /*
+             * Request prepare
+             */
+            RequestEnvelope request = new RequestEnvelope(uniqueName, session,
+                    (args != null && args.length > 0) ? args : null);
 
-        /*
-         * Write to stream and close it
-         */
-        os = connection.getOutputStream();
-        DeflaterOutputStream gos = new DeflaterOutputStream(os);
-        try {
-            ProtostuffIOUtil.writeTo(gos, request, schema, buffer);
-            gos.flush();
-            gos.close();
-        } catch (IOException ex) {
+            /*
+             * Write to stream and close it
+             */
+            os = connection.getOutputStream();
+            DeflaterOutputStream gos = new DeflaterOutputStream(os);
+            try {
+                ProtostuffIOUtil.writeTo(gos, request, schema, buffer);
+                gos.flush();
+                gos.close();
+            } catch (IOException ex) {
+                ProtoTransportException pex = new ProtoTransportException(
+                        "Error while writing to server.", ex);
+                if (exHandler != null) {
+                    exHandler.processException(pex);
+                } else {
+                    throw pex;
+                }
+                return null;
+            } finally {
+                buffer.clear();
+            }
+
+            /*
+             * Read server response
+             */
+            ResponseEnvelope response = null;
+            try {
+                is = connection.getInputStream();
+                InflaterInputStream gis = new InflaterInputStream(is);
+                response = schemaResp.newMessage();
+                ProtostuffIOUtil.mergeFrom(gis, response, schemaResp);
+                gis.close();
+            } catch (IOException ex) {
+                ProtoTransportException pex = new ProtoTransportException(
+                        "Couldn't read server response, connection failed.", ex);
+                if (exHandler != null) {
+                    exHandler.processException(pex);
+                } else {
+                    throw pex;
+                }
+                return null;
+            }
+            if (response != null) {
+                if (response.getStatus() > 0) {
+                    if (exHandler != null) {
+                        exHandler.processException(response.getThrowable());
+                    } else {
+                        throw response.getThrowable();
+                    }
+                }
+                Object value = response.getResult();
+                return value;
+            } else {
+                ServerResponseNullException pex = new ServerResponseNullException(
+                        null);
+                if (exHandler != null) {
+                    exHandler.processException(pex);
+                } else {
+                    throw pex;
+                }
+                return null;
+            }
+        } catch (InterruptedException ex) {
             ProtoTransportException pex = new ProtoTransportException(
-                    "Error while writing to server.", ex);
+                    "Couldn't obtain a free buffer to write to remote. Max capacity reached.",
+                    ex);
             if (exHandler != null) {
                 exHandler.processException(pex);
             } else {
@@ -228,48 +285,9 @@ public class ProtoProxy
             }
             return null;
         } finally {
-            buffer.clear();
-        }
-
-        /*
-         * Read server response
-         */
-        ResponseEnvelope response = null;
-        try {
-            is = connection.getInputStream();
-            InflaterInputStream gis = new InflaterInputStream(is);
-            response = schemaResp.newMessage();
-            ProtostuffIOUtil.mergeFrom(gis, response, schemaResp);
-            gis.close();
-        } catch (IOException ex) {
-            ProtoTransportException pex = new ProtoTransportException(
-                    "Couldn't read server response, connection failed.", ex);
-            if (exHandler != null) {
-                exHandler.processException(pex);
-            } else {
-                throw pex;
+            if (buffer != null) {
+                ProtoBufferPool.returnBuffer(buffer);
             }
-            return null;
-        }
-        if (response != null) {
-            if (response.getStatus() > 0) {
-                if (exHandler != null) {
-                    exHandler.processException(response.getThrowable());
-                } else {
-                    throw response.getThrowable();
-                }
-            }
-            Object value = response.getResult();
-            return value;
-        } else {
-            ServerResponseNullException pex = new ServerResponseNullException(
-                    null);
-            if (exHandler != null) {
-                exHandler.processException(pex);
-            } else {
-                throw pex;
-            }
-            return null;
         }
     }
 

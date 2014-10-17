@@ -36,23 +36,24 @@ import com.baco.protorpc.exceptions.MethodDoesntExistsException;
 import com.baco.protorpc.exceptions.ProtoException;
 import com.baco.protorpc.exceptions.RemoteServerException;
 import com.baco.protorpc.exceptions.WrongNumberOfArgumentsException;
+import com.baco.protorpc.util.ProtoBufferPool;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
-import com.dyuproject.protostuff.Input;
-import com.dyuproject.protostuff.LinkedBuffer;
-import com.dyuproject.protostuff.Output;
-import com.dyuproject.protostuff.Pipe;
-import com.dyuproject.protostuff.ProtostuffIOUtil;
-import com.dyuproject.protostuff.Schema;
-import com.dyuproject.protostuff.WireFormat;
-import com.dyuproject.protostuff.WireFormat.FieldType;
-import com.dyuproject.protostuff.runtime.DefaultIdStrategy;
-import com.dyuproject.protostuff.runtime.Delegate;
-import com.dyuproject.protostuff.runtime.RuntimeEnv;
-import com.dyuproject.protostuff.runtime.RuntimeSchema;
 import com.jcraft.jzlib.DeflaterOutputStream;
 import com.jcraft.jzlib.InflaterInputStream;
+import io.protostuff.Input;
+import io.protostuff.LinkedBuffer;
+import io.protostuff.Output;
+import io.protostuff.Pipe;
+import io.protostuff.ProtostuffIOUtil;
+import io.protostuff.Schema;
+import io.protostuff.WireFormat;
+import io.protostuff.WireFormat.FieldType;
+import io.protostuff.runtime.DefaultIdStrategy;
+import io.protostuff.runtime.Delegate;
+import io.protostuff.runtime.RuntimeEnv;
+import io.protostuff.runtime.RuntimeSchema;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -81,7 +82,6 @@ public class ProtoProxy {
     private final Object srvImplementation;
     private final SessionValidator[] sessionValidators;
     private final Map<String, Method> methodMap;
-    private static ThreadLocal<LinkedBuffer> threadBuffer = new ThreadLocal();
 
     protected ProtoProxy(final Object srvImplementation,
             final Class srvDescriptor,
@@ -107,13 +107,6 @@ public class ProtoProxy {
                     getName());
         }
     }
-    
-    public static void destroyBuffer() {
-        LinkedBuffer buffer = threadBuffer.get();
-        if(buffer != null) {
-            threadBuffer.remove();
-        }
-    }
 
     /**
      * Invokes the requested method in the server implementation
@@ -125,110 +118,43 @@ public class ProtoProxy {
      */
     public void invoke(HttpServletRequest servletRequest, InputStream is,
             OutputStream os) throws Exception {
-        /*
-         * Prepare buffer reuses thread buffer or creates a new buffer
-         */
-        LinkedBuffer buffer = threadBuffer.get();
-        if (buffer == null) {
-            buffer = LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE);
-            threadBuffer.set(buffer);
-        } else {
+        LinkedBuffer buffer = null;
+        try {
+            buffer = ProtoBufferPool.takeBuffer();
             buffer.clear();
-        }
-        /**
-         * Obtain decompressed input stream
-         */
-        InflaterInputStream gis = new InflaterInputStream(is);
-        /**
-         * Prepare schemas
-         */
-        DefaultIdStrategy dis = (DefaultIdStrategy) RuntimeEnv.ID_STRATEGY;
-        dis.registerDelegate(TIMESTAMP_DELEGATE);
-        dis.registerDelegate(DATE_DELEGATE);
-        dis.registerDelegate(TIME_DELEGATE);
-        Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(
-                RequestEnvelope.class);
-        Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(
-                ResponseEnvelope.class);
-        /**
-         * Obtain request from decompressed input stream
-         */
-        RequestEnvelope request = schema.newMessage();
-        ProtostuffIOUtil.mergeFrom(gis, request, schema);
-        gis.close();
-        /**
-         * Obtain compressed output stream
-         */
-        DeflaterOutputStream gos = new DeflaterOutputStream(os);
-        /*
-         * Check request validity
-         */
-        if (request == null || request.getMethodName() == null || request.
-                getMethodName().trim().isEmpty()) {
-            ResponseEnvelope response = new ResponseEnvelope(1, null,
-                    new ClientRequestNullException(null));
-            try {
-                ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
-            } finally {
-                buffer.clear();
-                gos.close();
-            }
-            return;
-        }
-        /*
-         * Check if method exists
-         */
-        if (methodMap.get(request.getMethodName()) == null) {
-            ResponseEnvelope response = new ResponseEnvelope(1, null,
-                    new MethodDoesntExistsException(request.getMethodName(),
-                            new IllegalArgumentException(
-                                    "Protoservice, requested method doesn't exists"
-                            ).fillInStackTrace()));
-            try {
-                ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
-            } finally {
-                buffer.clear();
-                gos.close();
-            }
-            return;
-        }
-        /**
-         * Obtain request attributes
-         */
-        Object[] values = request.getValues();
-        Method method = methodMap.get(request.getMethodName());
-        Class<?>[] args = method.getParameterTypes();
-        /*
-         * Check if number of arguments are equal to number of attrs on the
-         * stored method
-         */
-        if (values.length != args.length) {
-            ResponseEnvelope response = new ResponseEnvelope(1, null,
-                    new WrongNumberOfArgumentsException(request.getMethodName(),
-                            new IllegalArgumentException(
-                                    "Protoservice, wrong number of arguments in request"
-                            ).fillInStackTrace()));
-            try {
-                ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
-            } finally {
-                buffer.clear();
-                gos.close();
-            }
-            return;
-        }
-        /**
-         * Process session validators
-         */
-        if (sessionValidators != null && sessionValidators.length > 0) {
-            try {
-                for (SessionValidator sv : sessionValidators) {
-                    sv.checkSessionValid(request.getSession());
-                }
-            } catch (ProtoException ex) {
-                /**
-                 * Si ocurre algun error se devuelve el motivo
-                 */
-                ResponseEnvelope response = new ResponseEnvelope(1, null, ex);
+
+            /**
+             * Obtain decompressed input stream
+             */
+            InflaterInputStream gis = new InflaterInputStream(is);
+            /**
+             * Prepare schemas
+             */
+            DefaultIdStrategy dis = (DefaultIdStrategy) RuntimeEnv.ID_STRATEGY;
+            dis.registerDelegate(TIMESTAMP_DELEGATE);
+            dis.registerDelegate(DATE_DELEGATE);
+            dis.registerDelegate(TIME_DELEGATE);
+            Schema<RequestEnvelope> schema = RuntimeSchema.getSchema(
+                    RequestEnvelope.class);
+            Schema<ResponseEnvelope> schemaResp = RuntimeSchema.getSchema(
+                    ResponseEnvelope.class);
+            /**
+             * Obtain request from decompressed input stream
+             */
+            RequestEnvelope request = schema.newMessage();
+            ProtostuffIOUtil.mergeFrom(gis, request, schema);
+            gis.close();
+            /**
+             * Obtain compressed output stream
+             */
+            DeflaterOutputStream gos = new DeflaterOutputStream(os);
+            /*
+             * Check request validity
+             */
+            if (request == null || request.getMethodName() == null || request.
+                    getMethodName().trim().isEmpty()) {
+                ResponseEnvelope response = new ResponseEnvelope(1, null,
+                        new ClientRequestNullException(null));
                 try {
                     ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
                 } finally {
@@ -237,46 +163,115 @@ public class ProtoProxy {
                 }
                 return;
             }
-        }
-        /*
-         * Invoke method
-         */
-        Object result = null;
-        try {
-            /**
-             * Call proxy method
+            /*
+             * Check if method exists
              */
-            result = method.invoke(srvImplementation, values);
-        } catch (Exception e) {
-            Throwable e1 = e;
-            /**
-             * Desenvolver ProtoException
-             */
-            if (e1 instanceof InvocationTargetException) {
-                e1 = ((InvocationTargetException) e).getTargetException();
+            if (methodMap.get(request.getMethodName()) == null) {
+                ResponseEnvelope response = new ResponseEnvelope(1, null,
+                        new MethodDoesntExistsException(request.getMethodName(),
+                                new IllegalArgumentException(
+                                        "Protoservice, requested method doesn't exists"
+                                ).fillInStackTrace()));
+                try {
+                    ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+                } finally {
+                    buffer.clear();
+                    gos.close();
+                }
+                return;
             }
             /**
-             * Preparacion de respuesta
+             * Obtain request attributes
              */
-            ResponseEnvelope response = new ResponseEnvelope(1, null,
-                    new RemoteServerException(e1));
+            Object[] values = request.getValues();
+            Method method = methodMap.get(request.getMethodName());
+            Class<?>[] args = method.getParameterTypes();
+            /*
+             * Check if number of arguments are equal to number of attrs on the
+             * stored method
+             */
+            if (values.length != args.length) {
+                ResponseEnvelope response = new ResponseEnvelope(1, null,
+                        new WrongNumberOfArgumentsException(request.
+                                getMethodName(),
+                                new IllegalArgumentException(
+                                        "Protoservice, wrong number of arguments in request"
+                                ).fillInStackTrace()));
+                try {
+                    ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+                } finally {
+                    buffer.clear();
+                    gos.close();
+                }
+                return;
+            }
+            /**
+             * Process session validators
+             */
+            if (sessionValidators != null && sessionValidators.length > 0) {
+                try {
+                    for (SessionValidator sv : sessionValidators) {
+                        sv.checkSessionValid(request.getSession());
+                    }
+                } catch (ProtoException ex) {
+                    /**
+                     * Si ocurre algun error se devuelve el motivo
+                     */
+                    ResponseEnvelope response = new ResponseEnvelope(1, null, ex);
+                    try {
+                        ProtostuffIOUtil.writeTo(gos, response, schemaResp,
+                                buffer);
+                    } finally {
+                        buffer.clear();
+                        gos.close();
+                    }
+                    return;
+                }
+            }
+            /*
+             * Invoke method
+             */
+            Object result = null;
+            try {
+                /**
+                 * Call proxy method
+                 */
+                result = method.invoke(srvImplementation, values);
+            } catch (Exception e) {
+                Throwable e1 = e;
+                /**
+                 * Desenvolver ProtoException
+                 */
+                if (e1 instanceof InvocationTargetException) {
+                    e1 = ((InvocationTargetException) e).getTargetException();
+                }
+                /**
+                 * Preparacion de respuesta
+                 */
+                ResponseEnvelope response = new ResponseEnvelope(1, null,
+                        new RemoteServerException(e1));
+                try {
+                    ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+                } finally {
+                    buffer.clear();
+                    gos.close();
+                }
+                return;
+            }
+            /*
+             * Write response to output
+             */
+            ResponseEnvelope response = new ResponseEnvelope(0, result, null);
             try {
                 ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
             } finally {
                 buffer.clear();
                 gos.close();
             }
-            return;
-        }
-        /*
-         * Write response to output
-         */
-        ResponseEnvelope response = new ResponseEnvelope(0, result, null);
-        try {
-            ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
         } finally {
-            buffer.clear();
-            gos.close();
+            if (buffer != null) {
+                ProtoBufferPool.returnBuffer(buffer);
+            }
         }
     }
 

@@ -37,12 +37,11 @@ import java.net.MalformedURLException;
 import java.net.URL;
 
 /**
- * CHANGELOG
- * ----------
- * 2012-02-09 : First version
+ * CHANGELOG ---------- 2012-02-09 : First version
  */
 /**
  * A simple factory for invocation proxies
+ *
  * @author deiby_nahuat
  */
 public class ProtoProxyFactory {
@@ -57,28 +56,33 @@ public class ProtoProxyFactory {
     public ProtoProxyFactory(ClassLoader loader) {
         this.loader = loader;
     }
-    
+
     public void setHttps(boolean isHttps) {
         this.isHttps = isHttps;
     }
-    
+
     /**
      * Creates a new proxy
+     *
      * @param <T> The service interface class
      * @param iface The service interface
      * @param urlString The service url without the protocol
      * @return A proxy using the service interface as a facade
-     * @throws MalformedURLException 
+     * @throws MalformedURLException
      */
-    public <T> T create(Class<T> iface, String urlString, ProtoRemoteExceptionHandler exHandler, ProtoProxySessionRetriever sesRetriever)
+    public <T> T create(Class<T> iface,
+            String urlString,
+            ProtoRemoteExceptionHandler exHandler,
+            ProtoProxySessionRetriever sesRetriever)
             throws MalformedURLException {
         String protocol = isHttps ? "https://" : "http://";
         URL url = new URL(protocol + urlString);
-        if(iface == null) {
-            throw new NullPointerException("Service interface class must not be null");
+        if (iface == null) {
+            throw new NullPointerException(
+                    "Service interface class must not be null");
         }
         InvocationHandler handler;
         handler = new ProtoProxy(url, isHttps, exHandler, sesRetriever);
-        return (T)Proxy.newProxyInstance(loader, new Class[]{iface} , handler);
+        return (T) Proxy.newProxyInstance(loader, new Class[]{iface}, handler);
     }
 }

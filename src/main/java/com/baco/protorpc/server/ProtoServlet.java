@@ -97,10 +97,6 @@ public abstract class ProtoServlet
     @Override
     public void destroy() {
         super.destroy();
-        /**
-         * Removes buffer from memory
-         */
-        ProtoProxy.destroyBuffer();
     }
 
     @Override
