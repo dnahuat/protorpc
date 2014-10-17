@@ -37,12 +37,12 @@ import com.baco.protorpc.exceptions.ProtoException;
 import com.baco.protorpc.exceptions.RemoteServerException;
 import com.baco.protorpc.exceptions.WrongNumberOfArgumentsException;
 import com.baco.protorpc.util.ProtoBufferPool;
+import com.baco.protorpc.util.ProtoConfig;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
-import com.jcraft.jzlib.DeflaterOutputStream;
-import com.jcraft.jzlib.InflaterInputStream;
 import io.protostuff.Input;
+import io.protostuff.JsonIOUtil;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.Output;
 import io.protostuff.Pipe;
@@ -68,6 +68,8 @@ import java.sql.Timestamp;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.servlet.http.HttpServletRequest;
+import org.iq80.snappy.SnappyInputStream;
+import org.iq80.snappy.SnappyOutputStream;
 
 /**
  * CHANGELOG ---------- 2012-02-09 : First version
@@ -120,13 +122,22 @@ public class ProtoProxy {
             OutputStream os) throws Exception {
         LinkedBuffer buffer = null;
         try {
+            String serMode = ProtoConfig.getSerializationMode();
+            Boolean compEnabled = ProtoConfig.isCompressionEnabled();
+            Boolean isJsonNumeric = ProtoConfig.isJSONNumerical();
+
             buffer = ProtoBufferPool.takeBuffer();
             buffer.clear();
 
             /**
              * Obtain decompressed input stream
              */
-            InflaterInputStream gis = new InflaterInputStream(is);
+            InputStream sis;
+            if (compEnabled) {
+                sis = new SnappyInputStream(is);
+            } else {
+                sis = is;
+            }
             /**
              * Prepare schemas
              */
@@ -142,12 +153,21 @@ public class ProtoProxy {
              * Obtain request from decompressed input stream
              */
             RequestEnvelope request = schema.newMessage();
-            ProtostuffIOUtil.mergeFrom(gis, request, schema);
-            gis.close();
+            if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                ProtostuffIOUtil.mergeFrom(sis, request, schema);
+            } else {
+                JsonIOUtil.mergeFrom(sis, request, schema, isJsonNumeric);
+            }
+            sis.close();
             /**
              * Obtain compressed output stream
              */
-            DeflaterOutputStream gos = new DeflaterOutputStream(os);
+            OutputStream sos;
+            if (compEnabled) {
+                sos = new SnappyOutputStream(os);
+            } else {
+                sos = os;
+            }
             /*
              * Check request validity
              */
@@ -156,10 +176,16 @@ public class ProtoProxy {
                 ResponseEnvelope response = new ResponseEnvelope(1, null,
                         new ClientRequestNullException(null));
                 try {
-                    ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+                    if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                        ProtostuffIOUtil.writeTo(sos, response, schemaResp,
+                                buffer);
+                    } else {
+                        JsonIOUtil.writeTo(sos, response, schemaResp,
+                                isJsonNumeric, buffer);
+                    }
                 } finally {
                     buffer.clear();
-                    gos.close();
+                    sos.close();
                 }
                 return;
             }
@@ -173,10 +199,16 @@ public class ProtoProxy {
                                         "Protoservice, requested method doesn't exists"
                                 ).fillInStackTrace()));
                 try {
-                    ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+                    if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                        ProtostuffIOUtil.writeTo(sos, response, schemaResp,
+                                buffer);
+                    } else {
+                        JsonIOUtil.writeTo(sos, response, schemaResp,
+                                isJsonNumeric, buffer);
+                    }
                 } finally {
                     buffer.clear();
-                    gos.close();
+                    sos.close();
                 }
                 return;
             }
@@ -198,10 +230,16 @@ public class ProtoProxy {
                                         "Protoservice, wrong number of arguments in request"
                                 ).fillInStackTrace()));
                 try {
-                    ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+                    if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                        ProtostuffIOUtil.writeTo(sos, response, schemaResp,
+                                buffer);
+                    } else {
+                        JsonIOUtil.writeTo(sos, response, schemaResp,
+                                isJsonNumeric, buffer);
+                    }
                 } finally {
                     buffer.clear();
-                    gos.close();
+                    sos.close();
                 }
                 return;
             }
@@ -219,11 +257,16 @@ public class ProtoProxy {
                      */
                     ResponseEnvelope response = new ResponseEnvelope(1, null, ex);
                     try {
-                        ProtostuffIOUtil.writeTo(gos, response, schemaResp,
-                                buffer);
+                        if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                            ProtostuffIOUtil.writeTo(sos, response, schemaResp,
+                                    buffer);
+                        } else {
+                            JsonIOUtil.writeTo(sos, response, schemaResp,
+                                    isJsonNumeric, buffer);
+                        }
                     } finally {
                         buffer.clear();
-                        gos.close();
+                        sos.close();
                     }
                     return;
                 }
@@ -251,10 +294,16 @@ public class ProtoProxy {
                 ResponseEnvelope response = new ResponseEnvelope(1, null,
                         new RemoteServerException(e1));
                 try {
-                    ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+                    if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                        ProtostuffIOUtil.writeTo(sos, response, schemaResp,
+                                buffer);
+                    } else {
+                        JsonIOUtil.writeTo(sos, response, schemaResp,
+                                isJsonNumeric, buffer);
+                    }
                 } finally {
                     buffer.clear();
-                    gos.close();
+                    sos.close();
                 }
                 return;
             }
@@ -263,10 +312,16 @@ public class ProtoProxy {
              */
             ResponseEnvelope response = new ResponseEnvelope(0, result, null);
             try {
-                ProtostuffIOUtil.writeTo(gos, response, schemaResp, buffer);
+                if (serMode.equals(ProtoConfig.BINARY_MODE)) {
+                    ProtostuffIOUtil.writeTo(sos, response, schemaResp,
+                            buffer);
+                } else {
+                    JsonIOUtil.writeTo(sos, response, schemaResp, isJsonNumeric,
+                            buffer);
+                }
             } finally {
                 buffer.clear();
-                gos.close();
+                sos.close();
             }
         } finally {
             if (buffer != null) {

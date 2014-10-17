@@ -34,14 +34,14 @@ import com.baco.protorpc.util.ProtoBufferPool;
 import com.baco.protorpc.api.ProtoSession;
 import com.baco.protorpc.exceptions.ProtoTransportException;
 import com.baco.protorpc.exceptions.ServerResponseNullException;
+import com.baco.protorpc.util.ProtoConfig;
 import com.baco.protorpc.util.ProtoEncoders;
 import com.baco.protorpc.util.ProtoProxySessionRetriever;
 import com.baco.protorpc.util.ProtoSessionImpl;
 import com.baco.protorpc.util.RequestEnvelope;
 import com.baco.protorpc.util.ResponseEnvelope;
-import com.jcraft.jzlib.DeflaterOutputStream;
-import com.jcraft.jzlib.InflaterInputStream;
 import io.protostuff.Input;
+import io.protostuff.JsonIOUtil;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.Output;
 import io.protostuff.Pipe;
@@ -68,6 +68,8 @@ import java.sql.Timestamp;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.HttpsURLConnection;
+import org.iq80.snappy.SnappyInputStream;
+import org.iq80.snappy.SnappyOutputStream;
 
 /**
  * CHANGELOG ---------- 2012-02-09 : First version
@@ -139,6 +141,11 @@ public class ProtoProxy
         methodMap.put(method, ProtoEncoders.getMethodNameAsSha1(method));
         LinkedBuffer buffer = null;
         try {
+            String serMode = ProtoConfig.getSerializationMode();
+            Boolean compEnabled = ProtoConfig.isCompressionEnabled();
+            Boolean isJsonNumeric = ProtoConfig.isJSONNumerical();
+            
+            
             buffer = ProtoBufferPool.takeBuffer();
             /*
              * Initialize current buffer
@@ -216,11 +223,20 @@ public class ProtoProxy
              * Write to stream and close it
              */
             os = connection.getOutputStream();
-            DeflaterOutputStream gos = new DeflaterOutputStream(os);
+            OutputStream sos;
+            if(compEnabled) {
+                sos = new SnappyOutputStream(os);
+            } else {
+                sos = os;
+            }
             try {
-                ProtostuffIOUtil.writeTo(gos, request, schema, buffer);
-                gos.flush();
-                gos.close();
+                if(serMode.equals(ProtoConfig.BINARY_MODE)) {
+                    ProtostuffIOUtil.writeTo(sos, request, schema, buffer);
+                } else {
+                    JsonIOUtil.writeTo(os, request, schema, isJsonNumeric, buffer);
+                }
+                sos.flush();
+                sos.close();
             } catch (IOException ex) {
                 ProtoTransportException pex = new ProtoTransportException(
                         "Error while writing to server.", ex);
@@ -240,10 +256,19 @@ public class ProtoProxy
             ResponseEnvelope response = null;
             try {
                 is = connection.getInputStream();
-                InflaterInputStream gis = new InflaterInputStream(is);
+                InputStream sis;
+                if(compEnabled) {
+                    sis = new SnappyInputStream(is);
+                } else {
+                    sis = is;
+                }
                 response = schemaResp.newMessage();
-                ProtostuffIOUtil.mergeFrom(gis, response, schemaResp);
-                gis.close();
+                if(serMode.equals(ProtoConfig.JSON_MODE)) {
+                    ProtostuffIOUtil.mergeFrom(sis, response, schemaResp);
+                } else {
+                    JsonIOUtil.mergeFrom(sis, response, schemaResp, isJsonNumeric, buffer);
+                }
+                sis.close();
             } catch (IOException ex) {
                 ProtoTransportException pex = new ProtoTransportException(
                         "Couldn't read server response, connection failed.", ex);
@@ -307,7 +332,7 @@ public class ProtoProxy
 
         public void writeTo(Output output, int number, Timestamp value,
                 boolean repeated)
-                throws IOException {
+                throws IOException {            
             output.writeFixed64(number, value.getTime(), repeated);
         }
 
