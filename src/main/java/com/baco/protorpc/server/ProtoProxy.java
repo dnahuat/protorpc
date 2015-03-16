@@ -66,8 +66,12 @@ import java.lang.reflect.Method;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Calendar;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 import org.iq80.snappy.SnappyInputStream;
 import org.iq80.snappy.SnappyOutputStream;
@@ -136,19 +140,62 @@ public class ProtoProxy {
                     ResponseEnvelope.class);
             Schema<ProtoHandshake> schemaProto = RuntimeSchema.getSchema(
                     ProtoHandshake.class);
-            //String serMode = ProtoConfig.getSerializationMode();
-            //Boolean compEnabled = ProtoConfig.isCompressionEnabled();
-            //Boolean isJsonNumeric = ProtoConfig.isJSONNumerical();
 
             buffer = ProtoBufferPool.takeBuffer();
             buffer.clear();
 
+            /**
+             * LOG BLOCK
+             */
+            String requestUuid = UUID.randomUUID().toString();
+            Integer stepCounter = 0;
+            long elapsedTime = 0l;
+            long startedTime = System.currentTimeMillis();
+            String messageLog = new StringBuilder(stepCounter.toString())
+                    .append(". Request from ")
+                    .append(servletRequest.getRemoteAddr())
+                    .append(" started.")
+                    .append(" Request packed size=")
+                    .append(servletRequest.getContentLength())
+                    .append(". Assigned channel UUID=")
+                    .append(requestUuid)
+                    .append(". Elapsed time=")
+                    .append(elapsedTime)
+                    .toString();
+            Logger.getLogger("ProtoProxyServer").log(Level.INFO, messageLog);
+            stepCounter++;
+            /**
+             * END LOG BLOCK
+             */
             /**
              * Read protocol handshake
              */
             ProtoHandshake ph = schemaProto.newMessage();
             ProtostuffIOUtil.mergeDelimitedFrom(is, ph, schemaProto, buffer);
             buffer.clear();
+
+            /**
+             * LOG BLOCK
+             */
+            elapsedTime = System.currentTimeMillis() - startedTime;
+            messageLog = new StringBuilder(stepCounter.toString())
+                    .append(".(")
+                    .append(requestUuid)
+                    .append(") - Handshake begin packet from ")
+                    .append(servletRequest.getRemoteAddr())
+                    .append(" received.")
+                    .append(" Handshake begin message[")
+                    .append("compressed=").append(ph.getCompressed()).append(",")
+                    .append("data_encoding=").append(ph.getRequestedProtocol()==0?"protostuff,":"json,")
+                    .append("json_numerical=").append(ph.getJsonNumerical()).append("]")
+                    .append(". Elapsed time=")
+                    .append(elapsedTime)
+                    .toString();
+            Logger.getLogger("ProtoProxyServer").log(Level.INFO, messageLog);
+            stepCounter++;
+            /**
+             * END LOG BLOCK
+             */
 
             /**
              * Obtain decompressed input stream
@@ -171,6 +218,24 @@ public class ProtoProxy {
                         mergeFrom(sis, request, schema, ph.getJsonNumerical());
             }
             sis.close();
+
+            /**
+             * LOG BLOCK
+             */
+            elapsedTime = System.currentTimeMillis() - startedTime;
+            messageLog = new StringBuilder(stepCounter.toString())
+                    .append(".(")
+                    .append(requestUuid)
+                    .append(") - Request envelope unpacked successfully")
+                    .append(". Elapsed time=")
+                    .append(elapsedTime)
+                    .toString();
+            Logger.getLogger("ProtoProxyServer").log(Level.INFO, messageLog);
+            stepCounter++;
+            /**
+             * END LOG BLOCK
+             */
+
             /**
              * Obtain compressed output stream
              */
@@ -199,6 +264,30 @@ public class ProtoProxy {
                     buffer.clear();
                     sos.close();
                 }
+
+                /**
+                 * LOG BLOCK
+                 */
+                elapsedTime = System.currentTimeMillis() - startedTime;
+                messageLog = new StringBuilder(stepCounter.toString())
+                        .append(".(")
+                        .append(requestUuid)
+                        .append(") - Request envelope was invalid. Request was ABORTED.")
+                        .append(" Applied checks=[")
+                        .append("request_not_null=").append(request == null?"failed,":"passed,")
+                        .append("methodname_not_empty=").append(request == null?"failed"
+                                                        :(request.getMethodName()==null?"failed"
+                                                        :(request.getMethodName().trim().isEmpty()?"failed":"passed")))
+                        .append("]")
+                        .append(". Elapsed time=")
+                        .append(elapsedTime)
+                        .toString();
+                Logger.getLogger("ProtoProxyServer").log(Level.SEVERE, messageLog);
+                stepCounter++;
+                /**
+                 * END LOG BLOCK
+                 */
+
                 return;
             }
             /*
@@ -222,14 +311,58 @@ public class ProtoProxy {
                     buffer.clear();
                     sos.close();
                 }
+
+                /**
+                 * LOG BLOCK
+                 */
+                elapsedTime = System.currentTimeMillis() - startedTime;
+                messageLog = new StringBuilder(stepCounter.toString())
+                        .append(".(")
+                        .append(requestUuid)
+                        .append(") - Requested service (SHA1=")
+                        .append(request.getMethodName()).append(")")
+                        .append(" is not registered at this server. ABORTING execution")
+                        .append(". Elapsed time=")
+                        .append(elapsedTime)
+                        .toString();
+                Logger.getLogger("ProtoProxyServer").log(Level.SEVERE, messageLog);
+                stepCounter++;
+                /**
+                 * END LOG BLOCK
+                 */
                 return;
             }
+
             /**
              * Obtain request attributes
              */
             Object[] values = request.getValues();
             Method method = methodMap.get(request.getMethodName());
             Class<?>[] args = method.getParameterTypes();
+
+            /**
+             * LOG BLOCK
+             */
+            elapsedTime = System.currentTimeMillis() - startedTime;
+            messageLog = new StringBuilder(stepCounter.toString())
+                    .append(".(")
+                    .append(requestUuid)
+                    .append(") - Requested service (SHA1=")
+                    .append(request.getMethodName()).append(")")
+                    .append(" resolved as '")
+                    .append(method.getName()).append("' with [")
+                    .append("local_parameter_count=").append(args.length)
+                    .append(",request_parameter_count=").append(values.length)
+                    .append("]. Elapsed time=")
+                    .append(elapsedTime)
+                    .toString();
+            Logger.getLogger("ProtoProxyServer").log(Level.INFO, messageLog);
+            stepCounter++;
+            /**
+             * END LOG BLOCK
+             */
+
+
             /*
              * Check if number of arguments are equal to number of attrs on the
              * stored method
@@ -253,6 +386,25 @@ public class ProtoProxy {
                     buffer.clear();
                     sos.close();
                 }
+
+                /**
+                 * LOG BLOCK
+                 */
+                elapsedTime = System.currentTimeMillis() - startedTime;
+                messageLog = new StringBuilder(stepCounter.toString())
+                        .append(".(")
+                        .append(requestUuid)
+                        .append(") - Requested service has a different argument count than local implementation.")
+                        .append(" Maybe the remote server uses a different API version")
+                        .append(". Elapsed time=")
+                        .append(elapsedTime)
+                        .toString();
+                Logger.getLogger("ProtoProxyServer").log(Level.SEVERE, messageLog);
+                stepCounter++;
+                /**
+                 * END LOG BLOCK
+                 */
+
                 return;
             }
             /**
@@ -263,6 +415,22 @@ public class ProtoProxy {
                     for (SessionValidator sv : sessionValidators) {
                         sv.checkSessionValid(request.getSession());
                     }
+                    /**
+                     * LOG BLOCK
+                     */
+                    elapsedTime = System.currentTimeMillis() - startedTime;
+                    messageLog = new StringBuilder(stepCounter.toString())
+                            .append(".(")
+                            .append(requestUuid)
+                            .append(") - Request passed all session validations.")
+                            .append(". Elapsed time=")
+                            .append(elapsedTime)
+                            .toString();
+                    Logger.getLogger("ProtoProxyServer").log(Level.INFO, messageLog);
+                    stepCounter++;
+                    /**
+                     * END LOG BLOCK
+                     */
                 } catch (ProtoException ex) {
                     /**
                      * Si ocurre algun error se devuelve el motivo
@@ -280,6 +448,22 @@ public class ProtoProxy {
                         buffer.clear();
                         sos.close();
                     }
+                    /**
+                     * LOG BLOCK
+                     */
+                    elapsedTime = System.currentTimeMillis() - startedTime;
+                    messageLog = new StringBuilder(stepCounter.toString())
+                            .append(".(")
+                            .append(requestUuid)
+                            .append(") - Request invalid. Session validations not passed.")
+                            .append(". Elapsed time=")
+                            .append(elapsedTime)
+                            .toString();
+                    Logger.getLogger("ProtoProxyServer").log(Level.SEVERE, messageLog, ex);
+                    stepCounter++;
+                    /**
+                     * END LOG BLOCK
+                     */
                     return;
                 }
             }
@@ -289,9 +473,43 @@ public class ProtoProxy {
             Object result = null;
             try {
                 /**
+                 * LOG BLOCK
+                 */
+                elapsedTime = System.currentTimeMillis() - startedTime;
+                messageLog = new StringBuilder(stepCounter.toString())
+                        .append(".(")
+                        .append(requestUuid)
+                        .append(") - Service execution begin.")
+                        .append(". Elapsed time=")
+                        .append(elapsedTime)
+                        .toString();
+                Logger.getLogger("ProtoProxyServer").log(Level.INFO, messageLog);
+                stepCounter++;
+                /**
+                 * END LOG BLOCK
+                 */
+
+                /**
                  * Call proxy method
                  */
                 result = method.invoke(srvImplementation, values);
+
+                /**
+                 * LOG BLOCK
+                 */
+                elapsedTime = System.currentTimeMillis() - startedTime;
+                messageLog = new StringBuilder(stepCounter.toString())
+                        .append(".(")
+                        .append(requestUuid)
+                        .append(") - Service execution has ended successfully.")
+                        .append(". Elapsed time=")
+                        .append(elapsedTime)
+                        .toString();
+                Logger.getLogger("ProtoProxyServer").log(Level.INFO, messageLog);
+                stepCounter++;
+                /**
+                 * END LOG BLOCK
+                 */
             } catch (Exception e) {
                 Throwable e1 = e;
                 /**
@@ -317,6 +535,23 @@ public class ProtoProxy {
                     buffer.clear();
                     sos.close();
                 }
+
+                /**
+                 * LOG BLOCK
+                 */
+                elapsedTime = System.currentTimeMillis() - startedTime;
+                messageLog = new StringBuilder(stepCounter.toString())
+                        .append(".(")
+                        .append(requestUuid)
+                        .append(") - Service execution ended with errors.")
+                        .append(". Elapsed time=")
+                        .append(elapsedTime)
+                        .toString();
+                Logger.getLogger("ProtoProxyServer").log(Level.SEVERE, messageLog, e1);
+                stepCounter++;
+                /**
+                 * END LOG BLOCK
+                 */
                 return;
             }
             /*
@@ -324,6 +559,22 @@ public class ProtoProxy {
              */
             ResponseEnvelope response = new ResponseEnvelope(0, result, null);
             try {
+                /**
+                 * LOG BLOCK
+                 */
+                elapsedTime = System.currentTimeMillis() - startedTime;
+                messageLog = new StringBuilder(stepCounter.toString())
+                        .append(".(")
+                        .append(requestUuid)
+                        .append(") - Begin writing data to remote.")
+                        .append(". Elapsed time=")
+                        .append(elapsedTime)
+                        .toString();
+                Logger.getLogger("ProtoProxyServer").log(Level.INFO, messageLog);
+                stepCounter++;
+                /**
+                 * END LOG BLOCK
+                 */
                 if (ph.getRequestedProtocol() == 0) {
                     ProtostuffIOUtil.writeTo(sos, response, schemaResp,
                             buffer);
@@ -334,6 +585,22 @@ public class ProtoProxy {
             } finally {
                 buffer.clear();
                 sos.close();
+                /**
+                 * LOG BLOCK
+                 */
+                elapsedTime = System.currentTimeMillis() - startedTime;
+                messageLog = new StringBuilder(stepCounter.toString())
+                        .append(".(")
+                        .append(requestUuid)
+                        .append(") - End writing data to remote. Bye")
+                        .append(". Elapsed time=")
+                        .append(elapsedTime)
+                        .toString();
+                Logger.getLogger("ProtoProxyServer").log(Level.INFO, messageLog);
+                stepCounter++;
+                /**
+                 * END LOG BLOCK
+                 */
             }
         } finally {
             if (buffer != null) {
